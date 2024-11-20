@@ -4,7 +4,7 @@ import typing
 
 import msgspec
 
-from overture.logging import LoggerFactory
+from intro.logging import LoggerFactory
 
 T = typing.TypeVar("T", bound="BaseModel")
 

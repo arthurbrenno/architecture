@@ -1,7 +1,7 @@
 import unittest
 from typing import Callable, Dict, List
 
-from overture.extensions import Maybe
+from intro.extensions import Maybe
 
 
 class TestMaybe(unittest.TestCase):
