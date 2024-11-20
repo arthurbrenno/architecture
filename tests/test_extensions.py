@@ -1,7 +1,7 @@
 import unittest
 from typing import Callable, Dict, List
 
-from weavearc.extensions import Maybe
+from overture.extensions import Maybe
 
 
 class TestMaybe(unittest.TestCase):

@@ -4,7 +4,7 @@ import typing
 
 import msgspec
 
-from weavearc.logging import LoggerFactory
+from overture.logging import LoggerFactory
 
 T = typing.TypeVar("T", bound="BaseModel")
 
