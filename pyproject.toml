@@ -1,0 +1,14 @@
+[project]
+name = "overture"
+version = "v0.1.0"
+description = "Overture is a lightweight, comprehensive framework that empowers developers to create robust, maintainable applications. By adhering to clean architecture principles and domain-driven design (DDD) patterns, weavearc provides the foundational building blocks needed for scalable, flexible, and easily testable backends. Simplify the complex and build with confidence across any architecture."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["aiocache>=0.12.3", "msgspec>=0.18.6", "pydantic>=2.9.2", "rich>=13.9.4"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = ["halo>=0.0.31", "pyfiglet>=1.0.2", "pyright>=1.1.388", "questionary>=2.0.1", "rich>=13.9.4", "ruff>=0.7.3", "toml>=0.10.2", "tomlkit>=0.13.2", "types-toml>=0.10.8.20240310"]
