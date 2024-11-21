@@ -100,7 +100,7 @@ class BaseModel(msgspec.Struct):
     def as_dict(
         self,
         encoder: typing.Optional[msgspec.json.Encoder] = None,
-        decoder: typing.Optional[msgspec.json.Decoder] = None,
+        decoder: typing.Optional[msgspec.json.Decoder[dict[str, typing.Any]]] = None,
     ) -> dict[str, typing.Any]:
         """
         Convert the model instance to a JSON string.
@@ -127,8 +127,8 @@ class BaseModel(msgspec.Struct):
 
         encoder_instance: msgspec.json.Encoder = encoder or msgspec.json.Encoder()
 
-        decoder_instance: msgspec.json.Decoder = decoder or msgspec.json.Decoder(
-            type=dict
+        decoder_instance: msgspec.json.Decoder[dict[str, typing.Any]] = (
+            decoder or msgspec.json.Decoder(type=dict)
         )
 
         # Encoding objects of type numpy.float64 is unsupported
