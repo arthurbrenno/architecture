@@ -1,7 +1,7 @@
 [project]
-name = "intro"
+name = "overturo"
 version = "v0.1.1"
-description = "Intro is a lightweight, comprehensive framework that empowers developers to create robust, maintainable applications. By adhering to clean architecture principles and domain-driven design (DDD) patterns, weavearc provides the foundational building blocks needed for scalable, flexible, and easily testable backends. Simplify the complex and build with confidence across any architecture."
+description = "Overturo is a lightweight, comprehensive framework that empowers developers to create robust, maintainable applications. By adhering to clean architecture principles and domain-driven design (DDD) patterns, weavearc provides the foundational building blocks needed for scalable, flexible, and easily testable backends. Simplify the complex and build with confidence across any architecture."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["aiocache>=0.12.3", "msgspec>=0.18.6", "pydantic>=2.9.2", "rich>=13.9.4"]

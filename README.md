@@ -108,10 +108,10 @@ Here's a quick example to get you started with Overture. This example demonstrat
 
 ```python
 import asyncio
-from intro.logging import logger
-from intro import BaseModel
-from intro.services import Service, ServiceExecutor
-from intro.data.repositories import Repository, CreateResult, ReadResult, ReadAllResult, UpdateResult, DeleteResult
+from obelisk.logging import logger
+from obelisk import BaseModel
+from obelisk.services import Service, ServiceExecutor
+from obelisk.data.repositories import Repository, CreateResult, ReadResult, ReadAllResult, UpdateResult, DeleteResult
 
 # Define a data model
 class User(BaseModel):
@@ -176,7 +176,7 @@ Overture's logging module is built on top of [Loguru](https://github.com/Delgan/
 **Configuration:**
 
 ```python
-from intro.logging import logger
+from obelisk.logging import logger
 
 logger.debug("Debug message")
 logger.info("Info message")
@@ -197,7 +197,7 @@ The data module handles data schemas, models, repositories, and results. It leve
 **Example:**
 
 ```python
-from intro import BaseModel
+from obelisk import BaseModel
 
 class Product(BaseModel):
     id: int
@@ -216,7 +216,7 @@ The services module provides base classes for defining business logic encapsulat
 **Example:**
 
 ```python
-from intro.services import Service
+from obelisk.services import Service
 
 class CalculateTaxService(Service[float]):
     def __init__(self, amount: float):
@@ -238,7 +238,7 @@ Overture's utils module offers a variety of utility functions and decorators to 
 **Example:**
 
 ```python
-from intro.utils.decorators import pure
+from obelisk.utils.decorators import pure
 
 @pure(maxsize=256)
 def compute_heavy(x, y):
@@ -266,12 +266,12 @@ Overture's `BaseModel` offers similar functionalities to Pydantic's `BaseModel`,
    from pydantic import BaseModel
 
    # To Overture
-   from intro import BaseModel
+   from obelisk import BaseModel
    ```
 
 2. **Update Model Definitions:**
 
-   Change your model classes to inherit from intro's `BaseModel`.
+   Change your model classes to inherit from obelisk's `BaseModel`.
 
    ```python
    # Pydantic Model
@@ -337,8 +337,8 @@ By following these steps and considerations, you can smoothly transition your mo
 Services encapsulate business logic. Define a service by extending the `Service` or `AsyncService` base classes and implementing the `execute` method.
 
 ```python
-from intro.services import Service
-from intro import BaseModel
+from obelisk.services import Service
+from obelisk import BaseModel
 
 class Greeting(BaseModel):
     message: str
@@ -356,8 +356,8 @@ class GreetingService(Service[Greeting]):
 Repositories abstract data access logic. Implement repository interfaces to interact with your data sources.
 
 ```python
-from intro.data.repositories import Repository, CreateResult, ReadResult, ReadAllResult, UpdateResult, DeleteResult
-from intro import BaseModel
+from obelisk.data.repositories import Repository, CreateResult, ReadResult, ReadAllResult, UpdateResult, DeleteResult
+from obelisk import BaseModel
 
 class Book(BaseModel):
     isbn: str
@@ -391,7 +391,7 @@ class BookRepository(Repository[Book]):
 Configure and use the logging module to track events within your application.
 
 ```python
-from intro.logging import logger
+from obelisk.logging import logger
 
 def process_data(data):
     logger.debug("Processing data: {}", data)

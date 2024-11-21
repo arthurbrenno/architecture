@@ -4,7 +4,7 @@ import typing
 
 import msgspec
 
-from intro.logging import LoggerFactory
+from obelisk.logging import LoggerFactory
 
 T = typing.TypeVar("T", bound="BaseModel")
 
