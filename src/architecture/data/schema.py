@@ -101,7 +101,7 @@ class BaseModel(msgspec.Struct):
         self,
         encoder: typing.Optional[msgspec.json.Encoder] = None,
         decoder: typing.Optional[msgspec.json.Decoder] = None,
-    ) -> dict:
+    ) -> dict[str, typing.Any]:
         """
         Convert the model instance to a JSON string.
 
@@ -127,10 +127,15 @@ class BaseModel(msgspec.Struct):
 
         encoder_instance: msgspec.json.Encoder = encoder or msgspec.json.Encoder()
 
-        decoder_instance: msgspec.json.Decoder = decoder or msgspec.json.Decoder()
+        decoder_instance: msgspec.json.Decoder = decoder or msgspec.json.Decoder(
+            type=dict
+        )
 
         # Encoding objects of type numpy.float64 is unsupported
-        _dict: dict = decoder_instance.decode(encoder_instance.encode(self))
+        _dict: dict[str, typing.Any] = typing.cast(
+            dict[str, typing.Any],
+            decoder_instance.decode(encoder_instance.encode(self)),
+        )
         return _dict
 
     @classmethod
