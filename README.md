@@ -1,9 +1,9 @@
-# 🧵 Overture - The Clean Backend for All Architectures
+# 🧵 Architecture - The Clean Backend for All Architectures
 
 From dictionary
 > an introduction to something more substantial.
 
-Overture is a robust and flexible backend framework designed to streamline the development of scalable and maintainable applications. Leveraging modern Python features and best practices, Overture provides a comprehensive set of tools and modules to handle logging, data management, services, repositories, and more. Whether you're building a simple API or a complex microservices architecture, Overture offers the foundation you need to succeed.
+Architecture is a robust and flexible backend framework designed to streamline the development of scalable and maintainable applications. Leveraging modern Python features and best practices, Architecture provides a comprehensive set of tools and modules to handle logging, data management, services, repositories, and more. Whether you're building a simple API or a complex microservices architecture, Architecture offers the foundation you need to succeed.
 
 ## Table of Contents
 
@@ -27,11 +27,11 @@ Overture is a robust and flexible backend framework designed to streamline the d
 
 ## Key Components
 
-Overture is built around several core classes that provide the foundation for its functionality:
+Architecture is built around several core classes that provide the foundation for its functionality:
 
 ### **BaseModel**
 
-A base class for all data schemas in Overture, extending `msgspec.Struct`. It provides fast serialization/deserialization capabilities and utility methods for JSON handling.
+A base class for all data schemas in Architecture, extending `msgspec.Struct`. It provides fast serialization/deserialization capabilities and utility methods for JSON handling.
 
 ### **Entity**
 
@@ -88,7 +88,7 @@ A configured logger based on Loguru and Rich, providing colorful and structured 
 
 ## Installation
 
-Overture can be installed via `pip` from PyPI. Ensure you have Python 3.8 or higher.
+Architecture can be installed via `pip` from PyPI. Ensure you have Python 3.8 or higher.
 
 ```bash
 pip install overture
@@ -104,7 +104,7 @@ pip install -e .
 
 ## Quick Start
 
-Here's a quick example to get you started with Overture. This example demonstrates setting up logging, defining a data model, creating a service, and executing it.
+Here's a quick example to get you started with Architecture. This example demonstrates setting up logging, defining a data model, creating a service, and executing it.
 
 ```python
 import asyncio
@@ -171,7 +171,7 @@ logger.info(f"User created with UID: {result.uid}")
 
 ### Logging
 
-Overture's logging module is built on top of [Loguru](https://github.com/Delgan/loguru) and [Rich](https://github.com/willmcgugan/rich) to provide enhanced logging capabilities with colorful and structured output.
+Architecture's logging module is built on top of [Loguru](https://github.com/Delgan/loguru) and [Rich](https://github.com/willmcgugan/rich) to provide enhanced logging capabilities with colorful and structured output.
 
 **Configuration:**
 
@@ -228,7 +228,7 @@ class CalculateTaxService(Service[float]):
 
 ### Utils
 
-Overture's utils module offers a variety of utility functions and decorators to aid in common development tasks, such as caching, file handling, and dynamic instance creation.
+Architecture's utils module offers a variety of utility functions and decorators to aid in common development tasks, such as caching, file handling, and dynamic instance creation.
 
 - **Decorators**: Enhance functions with caching (`pure`) and deprecation (`deprecated`).
 - **Builders**: Simplify the construction of complex objects like `DynamicDict`.
@@ -247,25 +247,25 @@ def compute_heavy(x, y):
 
 ## Deprecation Notice
 
-⚠️ **Notice:** The `api` folder is **deprecated** and will be **removed in future versions** of Overture. We recommend migrating any existing code that relies on the `api` module to the new structure provided by Overture. Please refer to the [Migration Guide](#migration-guide) for detailed instructions.
+⚠️ **Notice:** The `api` folder is **deprecated** and will be **removed in future versions** of Architecture. We recommend migrating any existing code that relies on the `api` module to the new structure provided by Architecture. Please refer to the [Migration Guide](#migration-guide) for detailed instructions.
 
 ## Migration Guide
 
-### Migrating from Pydantic to Overture's `BaseModel`
+### Migrating from Pydantic to Architecture's `BaseModel`
 
-Overture's `BaseModel` offers similar functionalities to Pydantic's `BaseModel`, providing fast serialization/deserialization and type validation. Migrating from Pydantic to Overture's `BaseModel` is straightforward, but there are some considerations to keep in mind.
+Architecture's `BaseModel` offers similar functionalities to Pydantic's `BaseModel`, providing fast serialization/deserialization and type validation. Migrating from Pydantic to Architecture's `BaseModel` is straightforward, but there are some considerations to keep in mind.
 
 #### Steps to Migrate
 
 1. **Update Imports:**
 
-   Replace Pydantic imports with Overture's `BaseModel`.
+   Replace Pydantic imports with Architecture's `BaseModel`.
 
    ```python
    # From Pydantic
    from pydantic import BaseModel
 
-   # To Overture
+   # To Architecture
    from obelisk import BaseModel
    ```
 
@@ -279,7 +279,7 @@ Overture's `BaseModel` offers similar functionalities to Pydantic's `BaseModel`,
        username: str
        email: str
 
-   # Overture Model
+   # Architecture Model
    class User(BaseModel):
        username: str
        email: str
@@ -287,11 +287,11 @@ Overture's `BaseModel` offers similar functionalities to Pydantic's `BaseModel`,
 
 3. **Adjust Field Definitions:**
 
-   Overture's `BaseModel` uses `msgspec` under the hood. Ensure that field definitions are compatible. Most standard field definitions will work out of the box.
+   Architecture's `BaseModel` uses `msgspec` under the hood. Ensure that field definitions are compatible. Most standard field definitions will work out of the box.
 
 4. **Handle Validation and Configuration:**
 
-   Some Pydantic features, such as the `Config` class for model configuration, may not be available in Overture's `BaseModel`. Review your models for any Pydantic-specific configurations and adjust accordingly. The main goal here is to provide extremelly fast serialization, import time, application bloat.
+   Some Pydantic features, such as the `Config` class for model configuration, may not be available in Architecture's `BaseModel`. Review your models for any Pydantic-specific configurations and adjust accordingly. The main goal here is to provide extremelly fast serialization, import time, application bloat.
 
    ```python
    # Pydantic
@@ -304,7 +304,7 @@ Overture's `BaseModel` offers similar functionalities to Pydantic's `BaseModel`,
    ```
 
    ```python
-   # Overture - Configurations might need alternative handling
+   # Architecture - Configurations might need alternative handling
    class User(BaseModel):
        username: str
        email: str
@@ -314,21 +314,21 @@ Overture's `BaseModel` offers similar functionalities to Pydantic's `BaseModel`,
 
 - **Missing Pydantic Features:**
   
-  Overture's `BaseModel` may not support all features available in Pydantic. Specifically, the `Config` attribute and some advanced validation mechanisms might be absent. Ensure that your application does not rely heavily on these features or find alternative implementations within Overture.
+  Architecture's `BaseModel` may not support all features available in Pydantic. Specifically, the `Config` attribute and some advanced validation mechanisms might be absent. Ensure that your application does not rely heavily on these features or find alternative implementations within Architecture.
 
 - **Custom Validators:**
   
-  If you use Pydantic's `@validator` decorators for custom validation, you'll need to implement equivalent validation logic in Overture's models, possibly by overriding methods or using other utility functions provided by Overture.
+  If you use Pydantic's `@validator` decorators for custom validation, you'll need to implement equivalent validation logic in Architecture's models, possibly by overriding methods or using other utility functions provided by Architecture.
 
 - **Third-Party Integrations:**
   
-  Some third-party libraries that integrate tightly with Pydantic might not work seamlessly with Overture's `BaseModel`. Test these integrations thoroughly after migration.
+  Some third-party libraries that integrate tightly with Pydantic might not work seamlessly with Architecture's `BaseModel`. Test these integrations thoroughly after migration.
 
 - **Performance Considerations:**
   
-  While Overture's `BaseModel` is optimized for performance, differences in serialization/deserialization behavior compared to Pydantic could impact your application's performance characteristics. Benchmark critical paths to ensure performance meets your requirements.
+  While Architecture's `BaseModel` is optimized for performance, differences in serialization/deserialization behavior compared to Pydantic could impact your application's performance characteristics. Benchmark critical paths to ensure performance meets your requirements.
 
-By following these steps and considerations, you can smoothly transition your models from Pydantic to Overture's `BaseModel`, leveraging Overture's optimized performance and integrated features while maintaining the integrity of your application's data models.
+By following these steps and considerations, you can smoothly transition your models from Pydantic to Architecture's `BaseModel`, leveraging Architecture's optimized performance and integrated features while maintaining the integrity of your application's data models.
 
 ## Usage Examples
 
@@ -406,7 +406,7 @@ except Exception as e:
 
 ## Contributing
 
-We welcome contributions to Overture! If you'd like to contribute, please follow these steps:
+We welcome contributions to Architecture! If you'd like to contribute, please follow these steps:
 
 1. Fork the repository.
 2. Create a new branch for your feature or bugfix.
@@ -417,8 +417,8 @@ Please adhere to the [code of conduct](CODE_OF_CONDUCT.md) and ensure your contr
 
 ## License
 
-Overture is released under the [MIT License](LICENSE).
+Architecture is released under the [MIT License](LICENSE).
 
 ---
 
-*Happy Coding with Overture! 🚀*
+*Happy Coding with Architecture! 🚀*
