@@ -5,7 +5,7 @@ import typing
 import msgspec
 
 
-class NotGiven(msgspec.Struct, frozen=True):
+class NotGiven(msgspec.Struct, frozen=True):  # type: ignore[call-arg]
     """
     `NotGiven` is a sentinel class used to distinguish between `None`, actual values,
     and values that have not been provided (i.e., absent).
