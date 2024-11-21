@@ -88,17 +88,17 @@ A configured logger based on Loguru and Rich, providing colorful and structured 
 
 ## Installation
 
-Architecture can be installed via `pip` from PyPI. Ensure you have Python 3.8 or higher.
+Architecture can be installed via `pip` from PyPI. Ensure you have Python 3.10 or higher.
 
 ```bash
-pip install overture
+pip install architecture
 ```
 
 Alternatively, you can install it directly from the repository:
 
 ```bash
-git clone https://github.com/arthurbrenno/overture.git
-cd overture
+git clone https://github.com/arthurbrenno/architecture.git
+cd architecture
 pip install -e .
 ```
 
@@ -108,10 +108,10 @@ Here's a quick example to get you started with Architecture. This example demons
 
 ```python
 import asyncio
-from obelisk.logging import logger
-from obelisk import BaseModel
-from obelisk.services import Service, ServiceExecutor
-from obelisk.data.repositories import Repository, CreateResult, ReadResult, ReadAllResult, UpdateResult, DeleteResult
+from architecture.logging import logger
+from architecture import BaseModel
+from architecture.services import Service, ServiceExecutor
+from architecture.data.repositories import Repository, CreateResult, ReadResult, ReadAllResult, UpdateResult, DeleteResult
 
 # Define a data model
 class User(BaseModel):
@@ -176,7 +176,7 @@ Architecture's logging module is built on top of [Loguru](https://github.com/Del
 **Configuration:**
 
 ```python
-from obelisk.logging import logger
+from architecture.logging import logger
 
 logger.debug("Debug message")
 logger.info("Info message")
@@ -197,7 +197,7 @@ The data module handles data schemas, models, repositories, and results. It leve
 **Example:**
 
 ```python
-from obelisk import BaseModel
+from architecture import BaseModel
 
 class Product(BaseModel):
     id: int
@@ -216,7 +216,7 @@ The services module provides base classes for defining business logic encapsulat
 **Example:**
 
 ```python
-from obelisk.services import Service
+from architecture.services import Service
 
 class CalculateTaxService(Service[float]):
     def __init__(self, amount: float):
@@ -238,7 +238,7 @@ Architecture's utils module offers a variety of utility functions and decorators
 **Example:**
 
 ```python
-from obelisk.utils.decorators import pure
+from architecture.utils.decorators import pure
 
 @pure(maxsize=256)
 def compute_heavy(x, y):
@@ -266,12 +266,12 @@ Architecture's `BaseModel` offers similar functionalities to Pydantic's `BaseMod
    from pydantic import BaseModel
 
    # To Architecture
-   from obelisk import BaseModel
+   from architecture import BaseModel
    ```
 
 2. **Update Model Definitions:**
 
-   Change your model classes to inherit from obelisk's `BaseModel`.
+   Change your model classes to inherit from architecture's `BaseModel`.
 
    ```python
    # Pydantic Model
@@ -337,8 +337,8 @@ By following these steps and considerations, you can smoothly transition your mo
 Services encapsulate business logic. Define a service by extending the `Service` or `AsyncService` base classes and implementing the `execute` method.
 
 ```python
-from obelisk.services import Service
-from obelisk import BaseModel
+from architecture.services import Service
+from architecture import BaseModel
 
 class Greeting(BaseModel):
     message: str
@@ -356,8 +356,8 @@ class GreetingService(Service[Greeting]):
 Repositories abstract data access logic. Implement repository interfaces to interact with your data sources.
 
 ```python
-from obelisk.data.repositories import Repository, CreateResult, ReadResult, ReadAllResult, UpdateResult, DeleteResult
-from obelisk import BaseModel
+from architecture.data.repositories import Repository, CreateResult, ReadResult, ReadAllResult, UpdateResult, DeleteResult
+from architecture import BaseModel
 
 class Book(BaseModel):
     isbn: str
@@ -391,7 +391,7 @@ class BookRepository(Repository[Book]):
 Configure and use the logging module to track events within your application.
 
 ```python
-from obelisk.logging import logger
+from architecture.logging import logger
 
 def process_data(data):
     logger.debug("Processing data: {}", data)

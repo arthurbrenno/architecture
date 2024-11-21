@@ -1,7 +1,7 @@
 import unittest
 from typing import Callable, Dict, List
 
-from obelisk.extensions import Maybe
+from architecture.extensions import Maybe
 
 
 class TestMaybe(unittest.TestCase):

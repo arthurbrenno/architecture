@@ -4,14 +4,14 @@ import typing
 
 import msgspec
 
-from obelisk.logging import LoggerFactory
+from architecture.logging import LoggerFactory
 
 T = typing.TypeVar("T", bound="BaseModel")
 
 
 class BaseModel(msgspec.Struct):
     """
-    Base schema for all models in the application.
+    Fast, Reliable class for data structure classes.
 
     This class extends msgspec's Struct to provide additional functionality,
     specifically the ability to create model instances from JSON strings or
@@ -31,10 +31,6 @@ class BaseModel(msgspec.Struct):
         >>> print(person)
         Person(name='Alice', age=30)
     """
-
-    def __post_init__(self) -> None:
-        if self.__class__ is BaseModel:
-            raise TypeError("BaseModel class cannot be instantiated directly")
 
     @classmethod
     def from_dict(

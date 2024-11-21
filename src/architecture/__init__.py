@@ -1,6 +1,5 @@
 """
-cortex.base is a module that provides the core
-functionality any API needs to run.
+The architecture your project needs.
 """
 
 from msgspec import Meta, field
