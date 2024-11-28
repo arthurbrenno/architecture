@@ -101,6 +101,7 @@ class FileExtension(str, Enum):
     JPG = "jpg"
     HTML = "html"
     TXT = "txt"
+    MD = "md"
     # Add more extensions as needed
 
 
