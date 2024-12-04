@@ -3,12 +3,12 @@
 import importlib
 import inspect
 import re
-import typing
+from typing import Any, Generic, TypeVar
 
-T = typing.TypeVar("T")
+T = TypeVar("T")
 
 
-class DynamicInstanceCreator(typing.Generic[T]):
+class DynamicInstanceCreator(Generic[T]):
     """A utility class responsible for creating an instance of a class with the maximum number of parameters possible.
 
     This class examines the constructor (`__init__` method) or class-specific attributes (like `__struct_fields__` for `msgspec.Struct` classes) to determine which parameters are accepted. It then filters the provided keyword arguments to include only those parameters and initializes an instance of the class.
@@ -61,12 +61,12 @@ class DynamicInstanceCreator(typing.Generic[T]):
         None
     """
 
-    _cls: typing.Type[T]
+    _cls: type[T]
 
-    def __init__(self, cls: typing.Type[T]) -> None:
+    def __init__(self, cls: type[T]) -> None:
         self._cls = cls
 
-    def create_instance(self, **kwargs: typing.Any) -> T:
+    def create_instance(self, **kwargs: Any) -> T:
         """Creates an instance of `cls` with as many parameters from `kwargs` as possible.
 
         The method attempts to instantiate the class with all provided `kwargs`. If it encounters a
@@ -228,7 +228,7 @@ class ModuleClassLoader:
     def __init__(self, class_name: str) -> None:
         self.class_name = class_name
 
-    def get_class_from_module(self, module_name: str) -> typing.Type[typing.Any]:
+    def get_class_from_module(self, module_name: str) -> type[Any]:
         module = importlib.import_module(module_name)
         cls = getattr(module, self.class_name)
         return cls
@@ -236,10 +236,10 @@ class ModuleClassLoader:
     def create_instance_from_module(
         self,
         module_name: str,
-        **kwargs: typing.Any,
-    ) -> typing.Any:
+        **kwargs: Any,
+    ) -> Any:
         try:
-            cls: typing.Type[typing.Any] = self.get_class_from_module(
+            cls: type[Any] = self.get_class_from_module(
                 module_name=module_name
             )
 
