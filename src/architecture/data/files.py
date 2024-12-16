@@ -11,6 +11,7 @@ from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     BinaryIO,
     Callable,
@@ -253,6 +254,14 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     - Handle exceptions appropriately in production code, especially when dealing with I/O operations and network requests.
     """
 
+    name: Annotated[
+        str,
+        msgspec.Meta(
+            title="Name",
+            description="The name of the file",
+            examples=["example.pdf"]
+        )
+    ]
     contents: bytes
     extension: FileExtension
 
@@ -269,30 +278,31 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             data = f.read()
 
         return cls(
+            name=path.name,
             contents=data,
             extension=FileExtension(path.suffix.lstrip(".")),
         )
 
     @classmethod
-    def from_bytes(cls, data: bytes, extension: FileExtension) -> RawFile:
-        return cls(contents=data, extension=extension)
+    def from_bytes(cls, data: bytes, name: str, extension: FileExtension) -> RawFile:
+        return cls(name=name, contents=data, extension=extension)
 
     @classmethod
-    def from_base64(cls, b64_string: str, extension: FileExtension) -> RawFile:
+    def from_base64(cls, b64_string: str, name: str, extension: FileExtension) -> RawFile:
         data = base64.b64decode(b64_string)
-        return cls.from_bytes(data, extension)
+        return cls.from_bytes(data=data, name=name, extension=extension)
 
     @classmethod
     def from_string(
-        cls, content: str, extension: FileExtension, encoding: str = "utf-8"
+        cls, content: str, name: str, extension: FileExtension, encoding: str = "utf-8"
     ) -> RawFile:
         data = content.encode(encoding)
-        return cls.from_bytes(data, extension)
+        return cls.from_bytes(data=data, name=name, extension=extension)
 
     @classmethod
-    def from_stream(cls, stream: BinaryIO, extension: FileExtension) -> RawFile:
+    def from_stream(cls, stream: BinaryIO, name: str, extension: FileExtension) -> RawFile:
         data = stream.read()
-        return cls(contents=data, extension=extension)
+        return cls(name=name, contents=data, extension=extension)
 
     @classmethod
     def from_litestar_upload_file(
@@ -315,7 +325,9 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
         data = file.file.read()
-        return cls(contents=data, extension=extension)
+        return cls(
+            name=file.filename,
+            contents=data, extension=extension)
 
     @classmethod
     def from_fastapi_upload_file(
@@ -341,12 +353,12 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
         data = file.file.read()
-        return cls(contents=data, extension=extension)
+        return cls(name=file.filename, contents=data, extension=extension)
 
     @classmethod
     def from_url(
         cls: type[Self],
-        url: str | bytes,
+        url: str,
         *,
         params: Optional[_Params] = None,
         data: Optional[_Data] = None,
@@ -397,8 +409,9 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             or FileExtension.HTML
         )
 
-        return cls(contents=response_content, extension=file_extension)
+        return cls(name=url, contents=response_content, extension=file_extension)
 
+    @ensure_module_installed("boto3", "boto3")
     @classmethod
     def from_s3(
         cls,
