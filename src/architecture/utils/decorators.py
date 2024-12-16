@@ -5,13 +5,16 @@ from typing import (
     Awaitable,
     Callable,
     Optional,
+    ParamSpec,
     TypeVar,
     Union,
-    overload,
-    ParamSpec,
     cast,  # Import cast
+    overload,
 )
-
+import importlib.util
+from functools import wraps
+from rich.console import Console
+from rich.panel import Panel
 from aiocache import cached as aiocache_decorator  # type: ignore[import-untyped]
 
 # Define type variables
@@ -105,3 +108,62 @@ def pure(
         return decorator
     else:
         return decorator(func)
+
+
+
+def ensure_module_installed(
+    module_name: str, package_name: Optional[str] = None
+) -> Callable[..., Any]:
+    """
+    A decorator or function that ensures a Python module is installed before executing the function.
+
+    Args:
+        module_name: The import name of the module (e.g., 'vertexai.generative_models')
+        package_name: Optional pip package name to install (e.g., 'google-cloud-vertexai').
+    """
+
+    def ensure():
+        spec = importlib.util.find_spec(module_name)
+        if spec is None:
+            error_message = f"""
+[red bold]📦 Import Error: Module Not Found[/red bold]
+
+[yellow]Missing Module:[/yellow] {module_name}
+"""
+            if package_name:
+                error_message += f"""
+[green]To fix this, run one of these (according to your package manager):[/green]
+[blue]pip install {package_name}[/blue]
+[blue]uv add {package_name}[/blue]
+[blue]poetry add {package_name}[/blue]
+"""
+            else:
+                error_message += (
+                    "\n[dim]Please ensure the module is installed correctly.[/dim]"
+                )
+
+            error_message += "\n[dim]For more help, visit our documentation at https://docs.example.com[/dim]"
+
+            console = Console()
+            console.print(
+                Panel(
+                    error_message,
+                    title="❌ Error",
+                    border_style="red",
+                    padding=(1, 2),
+                    expand=False,
+                )
+            )
+            raise ImportError(f"Could not find module {module_name}")
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            ensure()
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    ensure()
+
+    return decorator
