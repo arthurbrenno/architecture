@@ -11,6 +11,7 @@ from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     BinaryIO,
     Callable,
@@ -23,6 +24,7 @@ from typing import (
 
 import msgspec
 import requests
+from architecture.utils.decorators import ensure_module_installed
 from _typeshed import SupportsItems, SupportsRead
 from requests import Response
 from requests.auth import AuthBase
@@ -252,6 +254,12 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     - Handle exceptions appropriately in production code, especially when dealing with I/O operations and network requests.
     """
 
+    name: Annotated[
+        str,
+        msgspec.Meta(
+            title="Name", description="The name of the file", examples=["example.pdf"]
+        ),
+    ]
     contents: bytes
     extension: FileExtension
 
@@ -268,30 +276,35 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             data = f.read()
 
         return cls(
+            name=path.name,
             contents=data,
             extension=FileExtension(path.suffix.lstrip(".")),
         )
 
     @classmethod
-    def from_bytes(cls, data: bytes, extension: FileExtension) -> RawFile:
-        return cls(contents=data, extension=extension)
+    def from_bytes(cls, data: bytes, name: str, extension: FileExtension) -> RawFile:
+        return cls(name=name, contents=data, extension=extension)
 
     @classmethod
-    def from_base64(cls, b64_string: str, extension: FileExtension) -> RawFile:
+    def from_base64(
+        cls, b64_string: str, name: str, extension: FileExtension
+    ) -> RawFile:
         data = base64.b64decode(b64_string)
-        return cls.from_bytes(data, extension)
+        return cls.from_bytes(data=data, name=name, extension=extension)
 
     @classmethod
     def from_string(
-        cls, content: str, extension: FileExtension, encoding: str = "utf-8"
+        cls, content: str, name: str, extension: FileExtension, encoding: str = "utf-8"
     ) -> RawFile:
         data = content.encode(encoding)
-        return cls.from_bytes(data, extension)
+        return cls.from_bytes(data=data, name=name, extension=extension)
 
     @classmethod
-    def from_stream(cls, stream: BinaryIO, extension: FileExtension) -> RawFile:
+    def from_stream(
+        cls, stream: BinaryIO, name: str, extension: FileExtension
+    ) -> RawFile:
         data = stream.read()
-        return cls(contents=data, extension=extension)
+        return cls(name=name, contents=data, extension=extension)
 
     @classmethod
     def from_litestar_upload_file(
@@ -314,7 +327,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
         data = file.file.read()
-        return cls(contents=data, extension=extension)
+        return cls(name=file.filename, contents=data, extension=extension)
 
     @classmethod
     def from_fastapi_upload_file(
@@ -340,12 +353,12 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
         data = file.file.read()
-        return cls(contents=data, extension=extension)
+        return cls(name=file.filename, contents=data, extension=extension)
 
     @classmethod
     def from_url(
         cls: type[Self],
-        url: str | bytes,
+        url: str,
         *,
         params: Optional[_Params] = None,
         data: Optional[_Data] = None,
@@ -394,8 +407,9 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             or FileExtension.HTML
         )
 
-        return cls(contents=response_content, extension=file_extension)
+        return cls(name=url, contents=response_content, extension=file_extension)
 
+    @ensure_module_installed("boto3", "boto3")
     @classmethod
     def from_s3(
         cls,
@@ -403,15 +417,6 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         object_key: str,
         extension: Optional[FileExtension] = None,
     ) -> RawFile:
-        loader = importlib.find_loader("boto3")
-        if loader is None:
-            raise ImportError(
-                """
-                Boto3 is required to use this method. Please install it with:
-                >>> pip install boto3
-                """
-            )
-
         import boto3
 
         s3 = boto3.client("s3")
@@ -433,8 +438,9 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         obj = s3.get_object(Bucket=bucket_name, Key=object_key)
         data = obj["Body"].read()
 
-        return cls(contents=data, extension=extension)
+        return cls(name=bucket_name, contents=data, extension=extension)
 
+    @ensure_module_installed("azure.storage.blob", "azure-storage-blob")
     @classmethod
     def from_azure_blob(
         cls,
@@ -443,15 +449,6 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         blob_name: str,
         extension: Optional[FileExtension] = None,
     ) -> RawFile:
-        loader = importlib.find_loader("azure.storage.blob")
-        if loader is None:
-            raise ImportError(
-                """
-                Azure SDK is required to use this method. Please install it with:
-                >>> pip install azure-storage-blob
-                """
-            )
-
         from azure.storage.blob import BlobServiceClient
 
         blob_service_client = BlobServiceClient.from_connection_string(
@@ -483,21 +480,13 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         stream = blob_client.download_blob()
         data = stream.readall()
 
-        return cls(contents=data, extension=extension)
+        return cls(name=container_name, contents=data, extension=extension)
 
+    @ensure_module_installed("google.cloud.storage", "google-cloud-storage")
     @classmethod
     def from_gcs(
         cls, bucket_name: str, blob_name: str, extension: Optional[FileExtension] = None
     ) -> RawFile:
-        loader = importlib.find_loader("google.cloud.storage")
-        if loader is None:
-            raise ImportError(
-                """
-                Google Cloud Storage is required to use this method. Please install it with:
-                >>> pip install google-cloud-storage
-                """
-            )
-
         from google.cloud.storage import Client
 
         client = Client()
@@ -520,7 +509,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
         data = blob.download_as_bytes()
 
-        return cls(contents=data, extension=extension)
+        return cls(name=bucket_name, contents=data, extension=extension)
 
     @classmethod
     def from_zip(
@@ -534,16 +523,16 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
                 data = file.read()
                 if not extension:
                     extension = FileExtension(Path(inner_file_path).suffix.lstrip("."))
-                return cls(contents=data, extension=extension)
+                return cls(name=inner_file_path, contents=data, extension=extension)
 
     @classmethod
     def from_database_blob(cls, blob_data: bytes, extension: FileExtension) -> RawFile:
-        return cls.from_bytes(blob_data, extension)
+        return cls.from_bytes(name="database_blob", data=blob_data, extension=extension)
 
     @classmethod
     def from_stdin(cls, extension: FileExtension) -> RawFile:
         data = sys.stdin.buffer.read()
-        return cls.from_bytes(data, extension)
+        return cls.from_bytes(name="stdin", data=data, extension=extension)
 
     @classmethod
     def from_ftp(
@@ -563,7 +552,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         ftp.quit()
         if not extension:
             extension = FileExtension(Path(filepath).suffix.lstrip("."))
-        return cls(contents=bytes(data), extension=extension)
+        return cls(name=filepath, contents=bytes(data), extension=extension)
 
     def save_to_file(self, file_path: str) -> None:
         with open(file_path, "wb") as f:
@@ -590,13 +579,13 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         import gzip
 
         compressed_data = gzip.compress(self.contents)
-        return RawFile(contents=compressed_data, extension=self.extension)
+        return RawFile(name="compressed.zip", contents=compressed_data, extension=self.extension) # TODO
 
     def decompress(self) -> RawFile:
         import gzip
 
         decompressed_data = gzip.decompress(self.contents)
-        return RawFile(contents=decompressed_data, extension=self.extension)
+        return RawFile(name=self.name, contents=decompressed_data, extension=self.extension)
 
     async def read_async(self) -> bytes:
         return self.contents
