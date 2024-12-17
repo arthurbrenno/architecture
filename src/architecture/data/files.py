@@ -23,7 +23,6 @@ from typing import (
 
 import msgspec
 import requests
-import validators
 from _typeshed import SupportsItems, SupportsRead
 from requests import Response
 from requests.auth import AuthBase
@@ -364,8 +363,6 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         json: Optional[Incomplete] = None,
         extension: Optional[FileExtension] = None,
     ) -> RawFile:
-        validators.url(url)
-
         response: requests.Response = requests.get(
             url,
             params=params,
