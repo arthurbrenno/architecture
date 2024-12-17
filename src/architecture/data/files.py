@@ -579,13 +579,17 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         import gzip
 
         compressed_data = gzip.compress(self.contents)
-        return RawFile(name="compressed.zip", contents=compressed_data, extension=self.extension) # TODO
+        return RawFile(
+            name="compressed.zip", contents=compressed_data, extension=self.extension
+        )  # TODO
 
     def decompress(self) -> RawFile:
         import gzip
 
         decompressed_data = gzip.decompress(self.contents)
-        return RawFile(name=self.name, contents=decompressed_data, extension=self.extension)
+        return RawFile(
+            name=self.name, contents=decompressed_data, extension=self.extension
+        )
 
     async def read_async(self) -> bytes:
         return self.contents
