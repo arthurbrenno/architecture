@@ -115,7 +115,7 @@ def ensure_module_installed(
     module_name: str, package_name: Optional[str] = None
 ) -> Callable[..., Any]:
     """
-    A decorator or function that ensures a Python module is installed before executing the function.
+    A decorator that ensures a Python module is installed before executing the function.
 
     Args:
         module_name: The import name of the module (e.g., 'vertexai.generative_models')
@@ -159,11 +159,9 @@ def ensure_module_installed(
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
+            # Check only when the function is called
             ensure()
             return func(*args, **kwargs)
-
         return wrapper
-
-    ensure()
 
     return decorator
