@@ -20,7 +20,6 @@ from typing import (
 import msgspec
 import requests
 from architecture.utils.decorators import ensure_module_installed
-from _typeshed import SupportsItems, SupportsRead
 
 from typing_extensions import Self
 
