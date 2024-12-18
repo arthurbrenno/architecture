@@ -14,84 +14,89 @@ from typing import (
     Annotated,
     Any,
     BinaryIO,
-    Callable,
-    Iterable,
-    Mapping,
-    MutableMapping,
     Optional,
-    TypeAlias,
 )
 
 import msgspec
 import requests
 from architecture.utils.decorators import ensure_module_installed
 from _typeshed import SupportsItems, SupportsRead
-from requests import Response
-from requests.auth import AuthBase
-from requests.models import PreparedRequest
+
 from typing_extensions import Self
-
-_TextMapping: TypeAlias = MutableMapping[str, str]
-_HeadersMapping: TypeAlias = Mapping[str, str | bytes | None]
-
-_Data: TypeAlias = (
-    # used in requests.models.PreparedRequest.prepare_body
-    #
-    # case: is_stream
-    # see requests.adapters.HTTPAdapter.send
-    # will be sent directly to http.HTTPConnection.send(...) (through urllib3)
-    Iterable[bytes]
-    # case: not is_stream
-    # will be modified before being sent to urllib3.HTTPConnectionPool.urlopen(body=...)
-    # see requests.models.RequestEncodingMixin._encode_params
-    # see requests.models.RequestEncodingMixin._encode_files
-    # note that keys&values are converted from Any to str by urllib.parse.urlencode
-    | str
-    | bytes
-    | SupportsRead[str | bytes]
-    | list[tuple[Any, Any]]
-    | tuple[tuple[Any, Any], ...]
-    | Mapping[Any, Any]
-)
-
-_ParamsMappingKeyType: TypeAlias = str | bytes | int | float
-_ParamsMappingValueType: TypeAlias = (
-    str | bytes | int | float | Iterable[str | bytes | int | float] | None
-)
-_Params: TypeAlias = (
-    SupportsItems[_ParamsMappingKeyType, _ParamsMappingValueType]
-    | tuple[_ParamsMappingKeyType, _ParamsMappingValueType]
-    | Iterable[tuple[_ParamsMappingKeyType, _ParamsMappingValueType]]
-    | str
-    | bytes
-)
-_Verify: TypeAlias = bool | str
-_Timeout: TypeAlias = float | tuple[float, float] | tuple[float, None]
-_Cert: TypeAlias = str | tuple[str, str]
-Incomplete: TypeAlias = Any
-_Hook: TypeAlias = Callable[[Response], Any]
-_HooksInput: TypeAlias = Mapping[str, Iterable[_Hook] | _Hook]
-_FileContent: TypeAlias = SupportsRead[str | bytes] | str | bytes
-_FileName: TypeAlias = str | None
-_FileContentType: TypeAlias = str
-_FileSpecTuple2: TypeAlias = tuple[_FileName, _FileContent]
-_FileSpecTuple3: TypeAlias = tuple[_FileName, _FileContent, _FileContentType]
-_FileCustomHeaders: TypeAlias = Mapping[str, str]
-_FileSpecTuple4: TypeAlias = tuple[
-    _FileName, _FileContent, _FileContentType, _FileCustomHeaders
-]
-_FileSpec: TypeAlias = (
-    _FileContent | _FileSpecTuple2 | _FileSpecTuple3 | _FileSpecTuple4
-)
-_Files: TypeAlias = Mapping[str, _FileSpec] | Iterable[tuple[str, _FileSpec]]
-_Auth: TypeAlias = (
-    tuple[str, str] | AuthBase | Callable[[PreparedRequest], PreparedRequest]
-)
 
 
 if TYPE_CHECKING:
     from fastapi import UploadFile as FastAPIUploadFile
+    from _typeshed import SupportsItems, SupportsRead
+    from requests import Response
+    from requests.auth import AuthBase
+    from requests.models import PreparedRequest
+    from typing import (
+        Callable,
+        Iterable,
+        Mapping,
+        MutableMapping,
+        TypeAlias,
+    )
+
     from litestar.datastructures import UploadFile as LitestarUploadFile
+
+    _TextMapping: TypeAlias = MutableMapping[str, str]
+    _HeadersMapping: TypeAlias = Mapping[str, str | bytes | None]
+
+    _Data: TypeAlias = (
+        # used in requests.models.PreparedRequest.prepare_body
+        #
+        # case: is_stream
+        # see requests.adapters.HTTPAdapter.send
+        # will be sent directly to http.HTTPConnection.send(...) (through urllib3)
+        Iterable[bytes]
+        # case: not is_stream
+        # will be modified before being sent to urllib3.HTTPConnectionPool.urlopen(body=...)
+        # see requests.models.RequestEncodingMixin._encode_params
+        # see requests.models.RequestEncodingMixin._encode_files
+        # note that keys&values are converted from Any to str by urllib.parse.urlencode
+        | str
+        | bytes
+        | SupportsRead[str | bytes]
+        | list[tuple[Any, Any]]
+        | tuple[tuple[Any, Any], ...]
+        | Mapping[Any, Any]
+    )
+
+    _ParamsMappingKeyType: TypeAlias = str | bytes | int | float
+    _ParamsMappingValueType: TypeAlias = (
+        str | bytes | int | float | Iterable[str | bytes | int | float] | None
+    )
+    _Params: TypeAlias = (
+        SupportsItems[_ParamsMappingKeyType, _ParamsMappingValueType]
+        | tuple[_ParamsMappingKeyType, _ParamsMappingValueType]
+        | Iterable[tuple[_ParamsMappingKeyType, _ParamsMappingValueType]]
+        | str
+        | bytes
+    )
+    _Verify: TypeAlias = bool | str
+    _Timeout: TypeAlias = float | tuple[float, float] | tuple[float, None]
+    _Cert: TypeAlias = str | tuple[str, str]
+    Incomplete: TypeAlias = Any
+    _Hook: TypeAlias = Callable[[Response], Any]
+    _HooksInput: TypeAlias = Mapping[str, Iterable[_Hook] | _Hook]
+    _FileContent: TypeAlias = SupportsRead[str | bytes] | str | bytes
+    _FileName: TypeAlias = str | None
+    _FileContentType: TypeAlias = str
+    _FileSpecTuple2: TypeAlias = tuple[_FileName, _FileContent]
+    _FileSpecTuple3: TypeAlias = tuple[_FileName, _FileContent, _FileContentType]
+    _FileCustomHeaders: TypeAlias = Mapping[str, str]
+    _FileSpecTuple4: TypeAlias = tuple[
+        _FileName, _FileContent, _FileContentType, _FileCustomHeaders
+    ]
+    _FileSpec: TypeAlias = (
+        _FileContent | _FileSpecTuple2 | _FileSpecTuple3 | _FileSpecTuple4
+    )
+    _Files: TypeAlias = Mapping[str, _FileSpec] | Iterable[tuple[str, _FileSpec]]
+    _Auth: TypeAlias = (
+        tuple[str, str] | AuthBase | Callable[[PreparedRequest], PreparedRequest]
+    )
 
 
 class FileExtension(str, Enum):
