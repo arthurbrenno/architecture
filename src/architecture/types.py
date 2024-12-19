@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Literal
 
 from typing_extensions import override
@@ -23,6 +25,18 @@ class NotGiven:
 
     def __bool__(self) -> Literal[False]:
         return False
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, NotGiven)
+
+    def __copy__(self) -> NotGiven:
+        return self
+
+    def __add__(self, other: object) -> NotGiven:
+        return self
+
+    def __deepcopy__(self, memo: dict) -> NotGiven:
+        return self
 
     @override
     def __repr__(self) -> str:
