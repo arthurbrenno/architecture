@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
-
 from rich.console import Console
 from rich.theme import Theme
 from rich.traceback import install as install_rich_traceback
@@ -51,30 +49,27 @@ class RichHandler(logging.Handler):
 
 class LoggerFactory:
     @staticmethod
-    def create(
-        name: str,
-        level: Literal[
-            "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"
-        ] = "DEBUG",
-    ) -> logging.Logger:
+    def create(name: str) -> logging.Logger:
         """
         Cria um logger configurado para o app.
 
         Args:
             name (str): Nome do logger.
-            level (Literal["DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"]): Nível de log. Padrão: "DEBUG".
 
         Returns:
             logging.Logger: Instância do logger configurado.
         """
         logger = logging.getLogger(name)
-        logger.setLevel(level)
+
+        # Here we set the logger level to NOTSET by default,
+        # which allows all messages to flow (DEBUG, INFO, etc.).
+        logger.setLevel(logging.NOTSET)
 
         # Avoid duplicate handlers if logger already exists
         if not logger.handlers:
             # Create Rich handler
             rich_handler = RichHandler()
-            rich_handler.setLevel(level)
+            rich_handler.setLevel(logging.NOTSET)
             rich_handler.setFormatter(
                 logging.Formatter("%(levelname)-8s | %(asctime)s | %(message)s")
             )

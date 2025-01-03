@@ -110,7 +110,6 @@ def pure(
         return decorator(func)
 
 
-
 def ensure_module_installed(
     module_name: str, package_name: Optional[str] = None
 ) -> Callable[..., Any]:
@@ -162,6 +161,7 @@ def ensure_module_installed(
             # Check only when the function is called
             ensure()
             return func(*args, **kwargs)
+
         return wrapper
 
     return decorator
