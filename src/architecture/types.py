@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import Literal
 
+import msgspec
 from typing_extensions import override
 
 
-class NotGiven:
+# We inherit from Struct to make it serializable. That's all.
+class NotGiven(msgspec.Struct, frozen=True):
     """
     A sentinel singleton class used to distinguish omitted keyword arguments
     from those passed in with the value None (which may have different behavior).
