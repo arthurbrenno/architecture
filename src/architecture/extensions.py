@@ -1,17 +1,27 @@
 from __future__ import annotations
 
 import collections.abc  # Required for runtime type checks
-import typing
+from typing import (
+    Any,
+    Callable,
+    Iterator,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeVar,
+    cast,
+    overload,
+)
 
+import msgspec
 from pydantic_core import core_schema
 
-T = typing.TypeVar("T")
-U = typing.TypeVar("U")
-K = typing.TypeVar("K")
-V = typing.TypeVar("V")
+U = TypeVar("U")
+K = TypeVar("K")
+V = TypeVar("V")
 
 
-class Maybe(typing.Generic[T]):
+class Maybe[T = object](msgspec.Struct, frozen=True):
     """
     A class that safely handles optional chaining for Python objects, emulating the `?.` operator
     found in languages like JavaScript. This allows for safe access to attributes and methods
@@ -47,7 +57,7 @@ class Maybe(typing.Generic[T]):
     >>> # Wrapping a callable
     >>> def greet(user: User) -> str:
     ...     return f"Hello, {user.name}!"
-    >>> maybe_greet: Maybe[typing.Callable[[User], str]] = Maybe(greet)
+    >>> maybe_greet: Maybe[Callable[[User], str]] = Maybe(greet)
     >>> maybe_greet(user_instance).unwrap()
     'Hello, Alice!'
 
@@ -87,25 +97,9 @@ class Maybe(typing.Generic[T]):
     ```
     """
 
-    def __init__(self, obj: typing.Optional[T]) -> None:
-        """
-        Initialize the `Maybe` wrapper.
+    obj: Optional[T] = None
 
-        Args:
-            obj (typing.Optional[T]): The object to wrap, which may be `None`.
-
-        Examples:
-            >>> maybe = Maybe("Hello")
-            >>> maybe.unwrap()
-            'Hello'
-
-            >>> maybe_none = Maybe(None)
-            >>> maybe_none.unwrap()
-            None
-        """
-        self._obj: typing.Optional[T] = obj
-
-    def __getattr__(self, attr: str) -> Maybe[typing.Any]:
+    def __getattr__(self, attr: str) -> Maybe[object]:
         """
         Safely access an attribute of the wrapped object.
 
@@ -113,7 +107,7 @@ class Maybe(typing.Generic[T]):
             attr (str): The attribute name to access.
 
         Returns:
-            Maybe[typing.Any]: An instance of `Maybe` wrapping the attribute's value or `None`.
+            Maybe[Any]: An instance of `Maybe` wrapping the attribute's value or `None`.
 
         Examples:
             >>> class User:
@@ -128,15 +122,14 @@ class Maybe(typing.Generic[T]):
             >>> maybe_none.name.unwrap()
             None
         """
-        if self._obj is None:
-            return Maybe(None)
+        if self.obj is None:
+            return Maybe[object](None)
         try:
-            attr_value = getattr(self._obj, attr)
-            return Maybe(attr_value)
+            return Maybe[object](getattr(self.obj, attr))
         except AttributeError:
-            return Maybe(None)
+            return Maybe[object](None)
 
-    def __call__(self, *args: typing.Any, **kwargs: typing.Any) -> Maybe[typing.Any]:
+    def __call__(self, *args: Any, **kwargs: Any) -> Maybe[object]:
         """
         Safely call the wrapped object if it's callable.
 
@@ -145,16 +138,16 @@ class Maybe(typing.Generic[T]):
             **kwargs: Keyword arguments for the callable.
 
         Returns:
-            Maybe[typing.Any]: An instance of `Maybe` wrapping the result of the call or `None`.
+            Maybe[Any]: An instance of `Maybe` wrapping the result of the call or `None`.
 
         Examples:
             >>> def greet(user: User) -> str:
             ...     return f"Hello, {user.name}!"
-            >>> maybe_greet: Maybe[typing.Callable[[User], str]] = Maybe(greet)
+            >>> maybe_greet: Maybe[Callable[[User], str]] = Maybe(greet)
             >>> maybe_greet(user_instance).unwrap()
             'Hello, Alice!'
 
-            >>> maybe_callable_none: Maybe[typing.Callable[[User], str]] = Maybe(None)
+            >>> maybe_callable_none: Maybe[Callable[[User], str]] = Maybe(None)
             >>> maybe_callable_none(user_instance).unwrap()
             None
 
@@ -162,20 +155,21 @@ class Maybe(typing.Generic[T]):
             >>> maybe_not_callable("Test").unwrap()
             None
         """
-        if self._obj is None or not callable(self._obj):
-            return Maybe(None)
-        try:
-            result = self._obj(*args, **kwargs)
-            return Maybe(result)
-        except Exception:
-            return Maybe(None)
 
-    def map(self, func: typing.Callable[[T], U]) -> Maybe[U]:
+        if self.obj is None or not callable(self.obj):
+            return Maybe[object](obj=None)
+        try:
+            result = self.obj(*args, **kwargs)
+            return Maybe[object](obj=result)
+        except Exception:
+            return Maybe[object](obj=None)
+
+    def map(self, func: Callable[[T], U]) -> Maybe[U]:
         """
         Apply a function to the wrapped object if it's not `None`.
 
         Args:
-            func (typing.Callable[[T], U]): A callable that takes the wrapped object and returns a new value.
+            func (Callable[[T], U]): A callable that takes the wrapped object and returns a new value.
 
         Returns:
             Maybe[U]: An instance of `Maybe` wrapping the function's result or `None`.
@@ -200,19 +194,19 @@ class Maybe(typing.Generic[T]):
             >>> maybe_five.map(risky_division).unwrap()
             2.0
         """
-        if self._obj is None:
-            return Maybe(None)
+        if self.obj is None:
+            return Maybe[U](obj=None)
         try:
-            return Maybe(func(self._obj))
+            return Maybe[U](obj=func(self.obj))
         except Exception:
-            return Maybe(None)
+            return Maybe[U](obj=None)
 
-    def unwrap(self) -> typing.Optional[T]:
+    def unwrap(self) -> Optional[T]:
         """
         Retrieve the underlying object.
 
         Returns:
-            typing.Optional[T]: The wrapped object if not `None`; otherwise, `None`.
+            Optional[T]: The wrapped object if not `None`; otherwise, `None`.
 
         Examples:
             >>> maybe = Maybe("Hello")
@@ -223,7 +217,7 @@ class Maybe(typing.Generic[T]):
             >>> maybe_none.unwrap()
             None
         """
-        return self._obj
+        return self.obj
 
     def __repr__(self) -> str:
         """
@@ -319,43 +313,12 @@ class Maybe(typing.Generic[T]):
         """
         return not self.__eq__(other)
 
-    def __hash__(self) -> int:
-        """
-        Make `Maybe` instances hashable if the wrapped object is hashable.
-
-        Returns:
-            int: The hash of the wrapped object.
-
-        Raises:
-            TypeError: If the wrapped object is unhashable.
-
-        Examples:
-            >>> maybe1: Maybe[int] = Maybe(5)
-            >>> maybe2: Maybe[int] = Maybe(5)
-            >>> hash(maybe1) == hash(maybe2)
-            True
-
-            >>> maybe_none1: Maybe[None] = Maybe(None)
-            >>> maybe_none2: Maybe[None] = Maybe(None)
-            >>> hash(maybe_none1) == hash(maybe_none2)
-            True
-
-            >>> maybe_unhashable: Maybe[list[int]] = Maybe([1, 2, 3])
-            >>> hash(maybe_unhashable)
-            Traceback (most recent call last):
-                ...
-            TypeError: unhashable type: 'list'
-        """
-        if self._obj is None:
-            return hash(None)
-        return hash(self._obj)
-
-    def __iter__(self) -> typing.Iterator[typing.Any]:
+    def __iter__(self) -> Iterator[Any]:
         """
         Allow iteration over the wrapped object if it's iterable.
 
         Yields:
-            typing.Any: Items from the wrapped iterable or nothing if the wrapped object is `None`.
+            Any: Items from the wrapped iterable or nothing if the wrapped object is `None`.
 
         Examples:
             >>> maybe_list: Maybe[list[int]] = Maybe([1, 2, 3])
@@ -370,28 +333,29 @@ class Maybe(typing.Generic[T]):
             >>> list(maybe_none)
             []
         """
-        if self._obj is not None and isinstance(self._obj, collections.abc.Iterable):
-            return iter(self._obj)
-        return iter(())  # Return empty iterator if not iterable
+        if self.obj is not None and isinstance(self.obj, collections.abc.Iterable):
+            # We do a runtime ignore on the type of `iter(obj)` because T might not be known to be iterable.
+            return iter(self.obj)
+        return iter(())
 
-    @typing.overload
-    def __getitem__(self: Maybe[typing.Mapping[K, V]], key: K) -> Maybe[V]: ...
+    @overload
+    def __getitem__(self: Maybe[Mapping[K, V]], key: K) -> Maybe[V]: ...
 
-    @typing.overload
-    def __getitem__(self: Maybe[typing.Sequence[V]], key: int) -> Maybe[V]: ...
+    @overload
+    def __getitem__(self: Maybe[Sequence[V]], key: int) -> Maybe[V]: ...
 
-    @typing.overload
-    def __getitem__(self: Maybe[typing.Any], key: typing.Any) -> Maybe[typing.Any]: ...
+    @overload
+    def __getitem__(self, key: object) -> Maybe[object]: ...
 
-    def __getitem__(self, key: typing.Any) -> Maybe[typing.Any]:
+    def __getitem__(self, key: object) -> Maybe[Any]:
         """
         Safely access an item by key/index if the wrapped object supports indexing.
 
         Args:
-            key (typing.Any): The key/index to access.
+            key (Any): The key/index to access.
 
         Returns:
-            Maybe[typing.Any]: An instance of `Maybe` wrapping the item's value or `None`.
+            Maybe[Any]: An instance of `Maybe` wrapping the item's value or `None`.
 
         Examples:
             >>> maybe_dict: Maybe[dict[str, int]] = Maybe({"a": 1, "b": 2})
@@ -409,31 +373,39 @@ class Maybe(typing.Generic[T]):
             >>> maybe_none["a"].unwrap()
             None
         """
-        if self._obj is None:
+        if self.obj is None:
             return Maybe(None)
-        try:
-            if isinstance(self._obj, collections.abc.Mapping):
-                mapping_obj = typing.cast(
-                    collections.abc.Mapping[typing.Any, typing.Any], self._obj
-                )
-                return Maybe(mapping_obj[key])
-            elif isinstance(self._obj, collections.abc.Sequence):
-                sequence_obj = typing.cast(
-                    collections.abc.Sequence[typing.Any], self._obj
-                )
-                return Maybe(sequence_obj[key])
-            elif hasattr(self._obj, "__getitem__"):
-                indexable_obj = typing.cast(typing.Any, self._obj)
-                return Maybe(indexable_obj[key])
-            return Maybe(None)
-        except (IndexError, KeyError, TypeError):
-            return Maybe(None)
+
+        # 1) If obj is a Mapping, key must be the type of mapping keys (K).
+        if isinstance(self.obj, Mapping):
+            try:
+                return Maybe(self.obj[key])
+            except (KeyError, TypeError):
+                return Maybe(None)
+
+        # 2) If obj is a Sequence, key must be int or slice.
+        elif isinstance(self.obj, Sequence):
+            if not isinstance(key, (int, slice)):
+                return Maybe(None)
+            try:
+                return Maybe(self.obj[key])
+            except (IndexError, TypeError):
+                return Maybe(None)
+
+        # 3) If it just has __getitem__, we can attempt calling it:
+        elif hasattr(self.obj, "__getitem__"):
+            try:
+                return Maybe(cast(Mapping, self.obj)[key])
+            except (IndexError, KeyError, TypeError, AttributeError):
+                return Maybe(None)
+
+        return Maybe(None)
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls,
-        source_type: typing.Any,
-        handler: typing.Callable[[typing.Any], core_schema.CoreSchema],
+        source_type: Any,
+        handler: Callable[[Any], core_schema.CoreSchema],
     ) -> core_schema.CoreSchema:
         """
         Define how pydantic should handle the Maybe class during serialization and deserialization.
@@ -445,11 +417,11 @@ class Maybe(typing.Generic[T]):
         wrapped_schema = handler(wrapped_type)
 
         # Define the validation function (accepts only 'value')
-        def validate(value: typing.Any) -> Maybe[T]:
+        def validate(value: Any) -> Maybe[T]:
             return cls(value)
 
         # Define the serialization function (accepts only 'value')
-        def serialize(value: "Maybe[T]") -> typing.Any:
+        def serialize(value: "Maybe[T]") -> Any:
             return value.unwrap()
 
         # Create and return the CoreSchema
@@ -481,14 +453,14 @@ class Maybe(typing.Generic[T]):
             >>> maybe_value.with_default("Default Value")
             'Actual Value'
         """
-        return self._obj if self._obj is not None else default
+        return self.obj if self.obj is not None else default
 
-    def and_then(self, func: typing.Callable[[T], Maybe[U]]) -> Maybe[U]:
+    def and_then(self, func: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """
         Chain operations that return `Maybe` instances.
 
         Args:
-            func (typing.Callable[[T], Maybe[U]]): A callable that takes the wrapped object and returns a `Maybe` instance.
+            func (Callable[[T], Maybe[U]]): A callable that takes the wrapped object and returns a `Maybe` instance.
 
         Returns:
             Maybe[U]: The result of the callable or `Maybe(None)` if the wrapped object is `None`.
@@ -518,9 +490,9 @@ class Maybe(typing.Generic[T]):
             >>> chained_none_initial.unwrap()
             None
         """
-        if self._obj is None:
-            return Maybe(None)
+        if self.obj is None:
+            return Maybe[U](obj=None)
         try:
-            return func(self._obj)
+            return func(self.obj)
         except Exception:
-            return Maybe(None)
+            return Maybe[U](obj=None)
