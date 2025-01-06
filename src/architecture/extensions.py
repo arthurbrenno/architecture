@@ -219,24 +219,6 @@ class Maybe[T = object](msgspec.Struct, frozen=True):
         """
         return self.obj
 
-    def __repr__(self) -> str:
-        """
-        Return the official string representation of the `Maybe`.
-
-        Returns:
-            str: A string representation of the `Maybe` instance.
-
-        Examples:
-            >>> maybe = Maybe("Hello")
-            >>> repr(maybe)
-            "Maybe('Hello')"
-
-            >>> maybe_none = Maybe(None)
-            >>> repr(maybe_none)
-            'Maybe(None)'
-        """
-        return f"Maybe({self._obj!r})"
-
     def __bool__(self) -> bool:
         """
         Allow `Maybe` instances to be used in boolean contexts.
