@@ -19,7 +19,7 @@ class RichHandler(logging.Handler):
 
             log_message = (
                 f"[{level_color}]{record.levelname:<8}[/{level_color}] | "
-                f"[cyan]{logging.Formatter().formatTime(record)}[/cyan] | "
+                f"[cyan]{self.formatTime(record)}[/cyan] | "
                 f"[{level_color}]{record.getMessage()}[/{level_color}]"
             )
 
@@ -46,39 +46,33 @@ class RichHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
+    def formatTime(self, record, datefmt=None):
+        return logging.Formatter("%(asctime)s").formatTime(record, datefmt)
+
 
 class LoggerFactory:
     @staticmethod
-    def create(name: str) -> logging.Logger:
+    def create(name: str, level: int = logging.DEBUG) -> logging.Logger:
         """
-        Cria um logger configurado para o app.
+        Creates a beautiful and rich logger for the application.
 
         Args:
             name (str): Nome do logger.
+            level (int, optional): Nível de log para o logger. Defaults to logging.DEBUG.
 
         Returns:
             logging.Logger: Instância do logger configurado.
         """
         logger = logging.getLogger(name)
+        logger.setLevel(level)  # Set logger level using parameter
 
-        # Here we set the logger level to NOTSET by default,
-        # which allows all messages to flow (DEBUG, INFO, etc.).
-        logger.setLevel(logging.NOTSET)
-
-        # Avoid duplicate handlers if logger already exists
         if not logger.handlers:
-            # Create Rich handler
             rich_handler = RichHandler()
-            rich_handler.setLevel(logging.NOTSET)
-            rich_handler.setFormatter(
-                logging.Formatter("%(levelname)-8s | %(asctime)s | %(message)s")
-            )
-
-            # Add Rich handler to logger
+            rich_handler.setLevel(logging.DEBUG)  # Set handler level
             logger.addHandler(rich_handler)
 
         return logger
 
 
 # Use LoggerFactory to create a logger instance
-logger = LoggerFactory.create("global")
+logger = LoggerFactory.create("global")  # Level is DEBUG by default
