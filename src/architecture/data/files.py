@@ -310,19 +310,11 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         data = stream.read()
         return cls(name=name, contents=data, extension=extension)
 
+    @ensure_module_installed("litestar", "litestar")
     @classmethod
     def from_litestar_upload_file(
         cls: type[RawFile], file: LitestarUploadFile
     ) -> RawFile:
-        loader = importlib.find_loader("litestar")
-        if loader is None:
-            raise ImportError(
-                """
-                Litestar is required to use this method. Please install it with:
-                >>> pip install litestar
-                """
-            )
-
         extension: Optional[FileExtension] = cls._get_extension_from_content_type(
             file.content_type
         )
@@ -333,19 +325,11 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         data = file.file.read()
         return cls(name=file.filename, contents=data, extension=extension)
 
+    @ensure_module_installed("fastapi", "fastapi")
     @classmethod
     def from_fastapi_upload_file(
         cls: type[RawFile], file: FastAPIUploadFile
     ) -> RawFile:
-        loader = importlib.find_loader("fastapi")
-        if loader is None:
-            raise ImportError(
-                """
-                FastAPI is required to use this method. Please install it with:
-                >>> pip install fastapi
-                """
-            )
-
         if file.content_type is None:
             raise ValueError("The content type of the file is missing.")
 
