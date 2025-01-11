@@ -1,11 +1,10 @@
 import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any, Callable
 
 from .decorators import pure
-
-T = TypeVar("T")
-P = ParamSpec("P")
 
 
 def file_get_contents(filename: str, cached: bool = False) -> str:
@@ -22,19 +21,47 @@ def _file_get_contents_cached(filename: str) -> str:
     return Path(filename).read_text()
 
 
-def run_sync(coro_func, *args, **kwargs):
+def run_sync[_T](func: Callable[..., _T], *args, **kwargs) -> _T:
     """
-    Run an async coroutine in a synchronous context.
+    Runs a callable synchronously. If called from an async context in the main thread,
+    it runs the callable in a new event loop in a separate thread. Otherwise, it
+    runs the callable directly or using `run_coroutine_threadsafe`.
+
+    Args:
+        func: The callable to execute.
+        *args: Positional arguments to pass to the callable.
+        **kwargs: Keyword arguments to pass to the callable.
+
+    Returns:
+        The result of the callable.
     """
+
+    async def _async_wrapper() -> _T:
+        return func(*args, **kwargs)
+
     try:
-        # If this succeeds, it means there's already a running loop in THIS thread
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        # No running loop -> safe to do `asyncio.run()`
-        return asyncio.run(coro_func(*args, **kwargs))
+        return asyncio.run(_async_wrapper())
+
+    if threading.current_thread() is threading.main_thread():
+        if not loop.is_running():
+            return loop.run_until_complete(_async_wrapper())
+        else:
+
+            def run_in_new_loop():
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(_async_wrapper())
+                finally:
+                    new_loop.close()
+
+            with ThreadPoolExecutor() as pool:
+                future = pool.submit(run_in_new_loop)
+                return future.result(30)
     else:
-        # There's a running loop in the current thread -> use that loop
-        return loop.run_until_complete(coro_func(*args, **kwargs))
+        return asyncio.run_coroutine_threadsafe(_async_wrapper(), loop).result()
 
 
 def fire_and_forget(async_func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
