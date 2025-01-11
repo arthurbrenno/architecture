@@ -166,3 +166,4 @@ cython_debug/
 .ruff_cache
 travel.py
 todos_os_arquivos.txt
+code_metrics_report.html
