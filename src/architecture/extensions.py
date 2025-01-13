@@ -239,7 +239,7 @@ class Maybe[T = object](msgspec.Struct, frozen=True):
             >>> bool(maybe_none)
             False
         """
-        return bool(self._obj)
+        return self.obj is not None
 
     def __eq__(self, other: object) -> bool:
         """
