@@ -112,7 +112,7 @@ def pure(
 
 def ensure_module_installed(
     module_name: str, package_name: Optional[str] = None
-) -> Callable[..., Any]:
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
     A decorator that ensures a Python module is installed before executing the function.
 
@@ -155,9 +155,9 @@ def ensure_module_installed(
             )
             raise ImportError(f"Could not find module {module_name}")
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             # Check only when the function is called
             ensure()
             return func(*args, **kwargs)
