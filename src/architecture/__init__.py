@@ -8,7 +8,6 @@ from .data import (
     AsyncRepository,
     CreateResult,
     DeleteResult,
-    BaseModel,
     ReadAllResult,
     ReadResult,
     Repository,
@@ -19,7 +18,6 @@ from .utils.builders import DynamicDict
 from .utils.markers import NotGiven
 
 __all__: list[str] = [
-    "BaseModel",
     "field",
     "Meta",
     "Meta",
