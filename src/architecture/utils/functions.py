@@ -2,9 +2,12 @@ import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Coroutine, ParamSpec, TypeVar
 
 from .decorators import pure
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def file_get_contents(filename: str, cached: bool = False) -> str:
@@ -64,7 +67,9 @@ def run_sync[_T](func: Callable[..., Awaitable[_T]], *args, **kwargs) -> _T:
         return asyncio.run_coroutine_threadsafe(_async_wrapper(), loop).result()
 
 
-def fire_and_forget(async_func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
+def fire_and_forget(
+    async_func: Callable[P, Coroutine[Any, Any, R]], *args: P.args, **kwargs: P.kwargs
+) -> None:
     """
     Schedules the async_func to run in the existing event loop if one is running.
     Otherwise, it creates a new event loop and runs the coroutine to completion.
