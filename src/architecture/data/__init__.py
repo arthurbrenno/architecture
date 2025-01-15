@@ -7,7 +7,6 @@ from .repositories import (
     Repository,
     UpdateResult,
 )
-from .schema import BaseModel
 
 __all__: list[str] = [
     "AsyncRepository",
@@ -17,5 +16,4 @@ __all__: list[str] = [
     "DeleteResult",
     "ReadAllResult",
     "ReadResult",
-    "BaseModel",
 ]

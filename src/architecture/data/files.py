@@ -2,42 +2,26 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import importlib
 import mimetypes
 import sys
 import zipfile
 from enum import Enum
 from http.cookiejar import CookieJar
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Annotated,
-    Any,
-    BinaryIO,
-    Optional,
-)
-
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, Optional, Sequence
+from requests import Response
+from requests.auth import AuthBase
+from requests.models import PreparedRequest
 import msgspec
 import requests
 from architecture.utils.decorators import ensure_module_installed
-
+from typing import Callable, Iterable, Mapping, MutableMapping, TypeAlias, overload
 from typing_extensions import Self
 
 
 if TYPE_CHECKING:
     from fastapi import UploadFile as FastAPIUploadFile
     from _typeshed import SupportsItems, SupportsRead
-    from requests import Response
-    from requests.auth import AuthBase
-    from requests.models import PreparedRequest
-    from typing import (
-        Callable,
-        Iterable,
-        Mapping,
-        MutableMapping,
-        TypeAlias,
-    )
-
     from litestar.datastructures import UploadFile as LitestarUploadFile
 
     _TextMapping: TypeAlias = MutableMapping[str, str]
@@ -499,19 +483,60 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
         return cls(name=bucket_name, contents=data, extension=extension)
 
+    @overload
+    @classmethod
+    def from_zip(
+        cls,
+        zip_file_path: str,
+        inner_file_path: None = None,
+        extension: Optional[FileExtension] = None,
+    ) -> Sequence[RawFile]: ...
+
+    @overload
     @classmethod
     def from_zip(
         cls,
         zip_file_path: str,
         inner_file_path: str,
         extension: Optional[FileExtension] = None,
-    ) -> RawFile:
+    ) -> RawFile: ...
+
+    @classmethod
+    def from_zip(
+        cls,
+        zip_file_path: str,
+        inner_file_path: Optional[str] = None,
+        extension: Optional[FileExtension] = None,
+    ) -> Sequence[RawFile] | RawFile:
         with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
-            with zip_ref.open(inner_file_path) as file:
-                data = file.read()
-                if not extension:
-                    extension = FileExtension(Path(inner_file_path).suffix.lstrip("."))
-                return cls(name=inner_file_path, contents=data, extension=extension)
+            if inner_file_path:
+                try:
+                    with zip_ref.open(inner_file_path) as file:
+                        data = file.read()
+                        file_extension = extension or FileExtension(
+                            Path(inner_file_path).suffix.lstrip(".")
+                        )
+                        return cls(
+                            name=inner_file_path,
+                            contents=data,
+                            extension=file_extension,
+                        )
+                except KeyError:
+                    raise FileNotFoundError(
+                        f"File '{inner_file_path}' not found in zip archive '{zip_file_path}'"
+                    )
+
+            raw_files = []
+            for inner_file in zip_ref.namelist():
+                with zip_ref.open(inner_file) as file:
+                    data = file.read()
+                    file_extension = extension or FileExtension(
+                        Path(inner_file).suffix.lstrip(".")
+                    )
+                    raw_files.append(
+                        cls(name=inner_file, contents=data, extension=file_extension)
+                    )
+            return raw_files
 
     @classmethod
     def from_database_blob(cls, blob_data: bytes, extension: FileExtension) -> RawFile:
