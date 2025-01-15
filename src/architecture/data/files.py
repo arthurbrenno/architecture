@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import mimetypes
+import tempfile
 import sys
 import zipfile
 from enum import Enum
@@ -15,7 +16,15 @@ from requests.models import PreparedRequest
 import msgspec
 import requests
 from architecture.utils.decorators import ensure_module_installed
-from typing import Callable, Iterable, Mapping, MutableMapping, TypeAlias, overload
+from typing import (
+    Callable,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    TypeAlias,
+    overload,
+    Literal,
+)
 from typing_extensions import Self
 
 
@@ -91,6 +100,7 @@ class FileExtension(str, Enum):
     HTML = "html"
     TXT = "txt"
     MD = "md"
+    ZIP = "zip"
     # Add more extensions as needed
 
 
@@ -294,17 +304,38 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         data = stream.read()
         return cls(name=name, contents=data, extension=extension)
 
+    @overload
+    @classmethod
+    def from_litestar_upload_file(
+        cls: type[RawFile], file: LitestarUploadFile, is_zip: Literal[False] = False
+    ) -> RawFile: ...
+
+    @overload
+    @classmethod
+    def from_litestar_upload_file(
+        cls: type[RawFile], file: LitestarUploadFile, is_zip: Literal[True]
+    ) -> Sequence[RawFile]: ...
+
     @ensure_module_installed("litestar", "litestar")
     @classmethod
     def from_litestar_upload_file(
-        cls: type[RawFile], file: LitestarUploadFile
-    ) -> RawFile:
+        cls: type[RawFile], file: LitestarUploadFile, is_zip: bool = False
+    ) -> RawFile | Sequence[RawFile]:
         extension: Optional[FileExtension] = cls._get_extension_from_content_type(
             file.content_type
         )
 
         if extension is None:
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
+
+        if extension == FileExtension.ZIP:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                file_contents = file.file.read()
+                temp_file_path = Path(temp_dir) / file.filename
+                with open(temp_file_path, "wb") as f:
+                    f.write(file_contents)
+
+                return cls.from_zip(str(temp_file_path.absolute))
 
         data = file.file.read()
         return cls(name=file.filename, contents=data, extension=extension)
@@ -489,7 +520,6 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         cls,
         zip_file_path: str,
         inner_file_path: None = None,
-        extension: Optional[FileExtension] = None,
     ) -> Sequence[RawFile]: ...
 
     @overload
@@ -498,7 +528,6 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         cls,
         zip_file_path: str,
         inner_file_path: str,
-        extension: Optional[FileExtension] = None,
     ) -> RawFile: ...
 
     @classmethod
@@ -506,14 +535,13 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         cls,
         zip_file_path: str,
         inner_file_path: Optional[str] = None,
-        extension: Optional[FileExtension] = None,
     ) -> Sequence[RawFile] | RawFile:
         with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
             if inner_file_path:
                 try:
                     with zip_ref.open(inner_file_path) as file:
                         data = file.read()
-                        file_extension = extension or FileExtension(
+                        file_extension = FileExtension(
                             Path(inner_file_path).suffix.lstrip(".")
                         )
                         return cls(
@@ -530,9 +558,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             for inner_file in zip_ref.namelist():
                 with zip_ref.open(inner_file) as file:
                     data = file.read()
-                    file_extension = extension or FileExtension(
-                        Path(inner_file).suffix.lstrip(".")
-                    )
+                    file_extension = FileExtension(Path(inner_file).suffix.lstrip("."))
                     raw_files.append(
                         cls(name=inner_file, contents=data, extension=file_extension)
                     )

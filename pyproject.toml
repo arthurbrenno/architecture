@@ -11,7 +11,22 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-dev-dependencies = ["boto3>=1.35.70", "google-cloud-storage>=2.18.2", "halo>=0.0.31", "mypy", "pyfiglet>=1.0.2", "pyright>=1.1.388", "questionary>=2.0.1", "rich>=13.9.4", "ruff>=0.7.3", "toml>=0.10.2", "tomlkit>=0.13.2", "types-requests>=2.32.0.20241016", "types-toml>=0.10.8.20240310"]
+dev-dependencies = [
+    "boto3>=1.35.70",
+    "google-cloud-storage>=2.18.2",
+    "halo>=0.0.31",
+    "litestar>=2.14.0",
+    "mypy",
+    "pyfiglet>=1.0.2",
+    "pyright>=1.1.388",
+    "questionary>=2.0.1",
+    "rich>=13.9.4",
+    "ruff>=0.7.3",
+    "toml>=0.10.2",
+    "tomlkit>=0.13.2",
+    "types-requests>=2.32.0.20241016",
+    "types-toml>=0.10.8.20240310",
+]
 
 [tool.uv.sources.msgspec]
 git = "https://github.com/jcrist/msgspec.git"
