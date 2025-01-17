@@ -335,7 +335,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
                 with open(temp_file_path, "wb") as f:
                     f.write(file_contents)
 
-                return cls.from_zip(str(temp_file_path.absolute))
+                return cls.from_zip(str(temp_file_path))
 
         data = file.file.read()
         return cls(name=file.filename, contents=data, extension=extension)
