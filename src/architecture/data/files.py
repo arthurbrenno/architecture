@@ -652,6 +652,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             "image/jpg": FileExtension.JPG,
             "text/html": FileExtension.HTML,
             "text/plain": FileExtension.TXT,
+            "application/x-zip-compressed": FileExtension.ZIP,
             # Add more mappings as needed
         }
         return content_type_map.get(content_type, None)
