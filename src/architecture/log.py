@@ -50,29 +50,27 @@ class RichHandler(logging.Handler):
         return logging.Formatter("%(asctime)s").formatTime(record, datefmt)
 
 
-class LoggerFactory:
-    @staticmethod
-    def create(name: str, level: int = logging.DEBUG) -> logging.Logger:
-        """
-        Creates a beautiful and rich logger for the application.
+def create_logger(name: str, level: int = logging.DEBUG) -> logging.Logger:
+    """
+    Creates a beautiful and rich logger for the application.
 
-        Args:
-            name (str): Nome do logger.
-            level (int, optional): Nível de log para o logger. Defaults to logging.DEBUG.
+    Args:
+        name (str): Nome do logger.
+        level (int, optional): Nível de log para o logger. Defaults to logging.DEBUG.
 
-        Returns:
-            logging.Logger: Instância do logger configurado.
-        """
-        logger = logging.getLogger(name)
-        logger.setLevel(level)  # Set logger level using parameter
+    Returns:
+        logging.Logger: Instância do logger configurado.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(level)  # Set logger level using parameter
 
-        if not logger.handlers:
-            rich_handler = RichHandler()
-            rich_handler.setLevel(logging.DEBUG)  # Set handler level
-            logger.addHandler(rich_handler)
+    if not logger.handlers:
+        rich_handler = RichHandler()
+        rich_handler.setLevel(logging.DEBUG)  # Set handler level
+        logger.addHandler(rich_handler)
 
-        return logger
+    return logger
 
 
 # Use LoggerFactory to create a logger instance
-logger = LoggerFactory.create("global")  # Level is DEBUG by default
+logger = create_logger("global")  # Level is DEBUG by default
