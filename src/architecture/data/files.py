@@ -316,8 +316,8 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         cls: type[RawFile], file: LitestarUploadFile, is_zip: Literal[True]
     ) -> Sequence[RawFile]: ...
 
-    @ensure_module_installed("litestar", "litestar")
     @classmethod
+    @ensure_module_installed("litestar", "litestar")
     def from_litestar_upload_file(
         cls: type[RawFile], file: LitestarUploadFile, is_zip: bool = False
     ) -> RawFile | Sequence[RawFile]:
@@ -340,8 +340,8 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         data = file.file.read()
         return cls(name=file.filename, contents=data, extension=extension)
 
-    @ensure_module_installed("fastapi", "fastapi")
     @classmethod
+    @ensure_module_installed("fastapi", "fastapi")
     def from_fastapi_upload_file(
         cls: type[RawFile], file: FastAPIUploadFile
     ) -> RawFile:
