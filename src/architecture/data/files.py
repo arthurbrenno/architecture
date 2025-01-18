@@ -101,6 +101,10 @@ class FileExtension(str, Enum):
     TXT = "txt"
     MD = "md"
     ZIP = "zip"
+    DOCX = "docx"
+    XLSX = "xlsx"
+    CSV = "csv"
+    PPTX = "pptx"
     # Add more extensions as needed
 
 
