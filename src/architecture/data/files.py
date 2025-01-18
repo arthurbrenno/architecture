@@ -107,6 +107,7 @@ class FileExtension(str, Enum):
     PPTX = "pptx"
     TIFF = "tiff"
     GIF = "gif"
+    DWG = "dwg"
     # Add more extensions as needed
 
 
