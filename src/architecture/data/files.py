@@ -108,6 +108,17 @@ class FileExtension(str, Enum):
     TIFF = "tiff"
     GIF = "gif"
     DWG = "dwg"
+    ALG = "alg"
+    DOC = "doc"
+    PPT = "ppt"
+    PKT = "pkt"
+    PKZ = "pkz"
+    RAR = "rar"
+    XML = "xml"
+    BMP = "bmp"
+    TIF = "tif"
+    PPTM = "pptm"
+    XLS = "xls"
     # Add more extensions as needed
 
 
