@@ -119,7 +119,6 @@ class FileExtension(str, Enum):
     TIF = "tif"
     PPTM = "pptm"
     XLS = "xls"
-    # Add more extensions as needed
 
 
 class RawFile(msgspec.Struct, frozen=True, gc=False):
