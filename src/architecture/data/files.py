@@ -105,6 +105,7 @@ class FileExtension(str, Enum):
     XLSX = "xlsx"
     CSV = "csv"
     PPTX = "pptx"
+    TIFF = "tiff"
     # Add more extensions as needed
 
 
