@@ -1,6 +1,6 @@
 [project]
 name = "architecture"
-version = "v0.5.23"
+version = "v0.5.24"
 description = "Architecture is a lightweight, comprehensive framework that empowers developers to create robust, maintainable applications. By adhering to clean architecture principles and domain-driven design (DDD) patterns, weavearc provides the foundational building blocks needed for scalable, flexible, and easily testable backends. Simplify the complex and build with confidence across any architecture."
 readme = "README.md"
 requires-python = ">=3.13"
