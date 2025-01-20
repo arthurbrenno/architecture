@@ -69,6 +69,7 @@ def create_logger(name: str, level: int = logging.DEBUG) -> logging.Logger:
         rich_handler.setLevel(logging.DEBUG)  # Set handler level
         logger.addHandler(rich_handler)
 
+    logger.propagate = False
     return logger
 
 
