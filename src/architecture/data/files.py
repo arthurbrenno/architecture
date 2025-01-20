@@ -679,8 +679,8 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     def _get_extension_from_filename(cls, filename: str) -> Optional[FileExtension]:
         ext = Path(filename).suffix.lstrip(".")
         return (
-            FileExtension[ext.upper()]
-            if ext.upper() in FileExtension.__members__
+            FileExtension[ext.lower()]
+            if ext.lower() in FileExtension.__members__
             else None
         )
 
