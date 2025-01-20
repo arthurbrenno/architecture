@@ -547,55 +547,28 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
         return cls(name=bucket_name, contents=data, extension=extension)
 
-    @overload
     @classmethod
     def from_zip(
         cls,
         zip_file_path: str,
-        inner_file_path: None = None,
-    ) -> Sequence[RawFile]: ...
+    ) -> RawFile:
+        """
+        Creates a RawFile instance from a ZIP archive. The content of the RawFile
+        will be the bytes of the entire ZIP archive itself.
 
-    @overload
-    @classmethod
-    def from_zip(
-        cls,
-        zip_file_path: str,
-        inner_file_path: str,
-    ) -> RawFile: ...
+        Args:
+            zip_file_path: The path to the ZIP archive file.
 
-    @classmethod
-    def from_zip(
-        cls,
-        zip_file_path: str,
-        inner_file_path: Optional[str] = None,
-    ) -> Sequence[RawFile] | RawFile:
-        with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
-            if inner_file_path:
-                try:
-                    with zip_ref.open(inner_file_path) as file:
-                        data = file.read()
-                        file_extension = FileExtension(
-                            Path(inner_file_path).suffix.lstrip(".")
-                        )
-                        return cls(
-                            name=inner_file_path,
-                            contents=data,
-                            extension=file_extension,
-                        )
-                except KeyError:
-                    raise FileNotFoundError(
-                        f"File '{inner_file_path}' not found in zip archive '{zip_file_path}'"
-                    )
+        Returns:
+            A RawFile instance where the contents are the bytes of the ZIP archive
+            and the extension is FileExtension.ZIP.
+        """
+        with open(zip_file_path, "rb") as f:
+            data = f.read()
 
-            raw_files = []
-            for inner_file in zip_ref.namelist():
-                with zip_ref.open(inner_file) as file:
-                    data = file.read()
-                    file_extension = FileExtension(Path(inner_file).suffix.lstrip("."))
-                    raw_files.append(
-                        cls(name=inner_file, contents=data, extension=file_extension)
-                    )
-            return raw_files
+        return cls(
+            name=Path(zip_file_path).name, contents=data, extension=FileExtension.ZIP
+        )
 
     @classmethod
     def from_database_blob(cls, blob_data: bytes, extension: FileExtension) -> RawFile:
