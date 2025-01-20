@@ -338,27 +338,26 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     def from_litestar_upload_file(
         cls: type[RawFile], file: LitestarUploadFile, is_zip: bool = False
     ) -> RawFile | Sequence[RawFile]:
-        extension: Optional[FileExtension] = cls._get_extension_from_content_type(
-            file.content_type
+        file_contents = file.file.read()
+        extension: Optional[FileExtension] = cls._find_extension(
+            content_type=file.content_type,
+            filename=file.filename,
+            contents=file_contents,
         )
 
-        if extension is None and file.content_type == "application/octet-stream":
-            extension = FileExtension.TXT
-
         if extension is None:
+            # More aggresive approach
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
         if extension == FileExtension.ZIP:
             with tempfile.TemporaryDirectory() as temp_dir:
-                file_contents = file.file.read()
                 temp_file_path = Path(temp_dir) / file.filename
                 with open(temp_file_path, "wb") as f:
                     f.write(file_contents)
 
                 return cls.from_zip(str(temp_file_path))
 
-        data = file.file.read()
-        return cls(name=file.filename, contents=data, extension=extension)
+        return cls(name=file.filename, contents=file_contents, extension=extension)
 
     @classmethod
     @ensure_module_installed("fastapi", "fastapi")
@@ -367,16 +366,16 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     ) -> RawFile:
         if file.content_type is None:
             raise ValueError("The content type of the file is missing.")
+        file_contents = file.file.read()
 
-        extension: Optional[FileExtension] = cls._get_extension_from_content_type(
-            file.content_type
+        extension: Optional[FileExtension] = cls._find_extension(
+            file.content_type, filename=file.filename, contents=file_contents
         )
 
         if extension is None:
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
-        data = file.file.read()
-        return cls(name=file.filename, contents=data, extension=extension)
+        return cls(name=file.filename, contents=file_contents, extension=extension)
 
     @classmethod
     def from_url(
@@ -424,9 +423,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             data = str(data).encode("utf-8")
 
         file_extension = extension or (
-            cls._get_extension_from_content_type(
-                response.headers.get("Content-Type", "").split(";")[0]
-            )
+            cls._find_extension(response.headers.get("Content-Type", "").split(";")[0])
             or FileExtension.HTML
         )
 
@@ -451,7 +448,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             else:
                 head_object = s3.head_object(Bucket=bucket_name, Key=object_key)
                 content_type = head_object.get("ContentType", "")
-                extension = cls._get_extension_from_content_type(content_type)
+                extension = cls._find_extension(content_type)
 
         if not extension:
             raise ValueError(
@@ -493,7 +490,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
                         "Unable to determine the file extension. Please specify it explicitly."
                     )
 
-                extension = cls._get_extension_from_content_type(content_type)
+                extension = cls._find_extension(content_type)
 
         if not extension:
             raise ValueError(
@@ -523,7 +520,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             else:
                 blob.reload()
                 content_type = blob.content_type
-                extension = cls._get_extension_from_content_type(content_type)
+                extension = cls._find_extension(content_type)
 
         if not extension:
             raise ValueError(
@@ -662,8 +659,40 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     def __del__(self):
         pass  # No cleanup needed
 
-    @staticmethod
-    def _get_extension_from_content_type(content_type: str) -> Optional[FileExtension]:
+    @classmethod
+    def _get_extension_from_filename(cls, filename: str) -> Optional[FileExtension]:
+        ext = Path(filename).suffix.lstrip(".")
+        return (
+            FileExtension[ext.upper()]
+            if ext.upper() in FileExtension.__members__
+            else None
+        )
+
+    @classmethod
+    def _get_extension_agressively(cls, contents: bytes) -> Optional[FileExtension]:
+        # Implement this method
+        pass
+
+    @classmethod
+    def _find_extension(
+        cls,
+        content_type: Optional[str] = None,
+        filename: Optional[str] = None,
+        contents: Optional[bytes] = None,
+    ) -> Optional[FileExtension]:
+        if content_type:
+            return cls._get_extension_from_content_type(content_type)
+        if filename:
+            return cls._get_extension_from_filename(filename)
+        if contents:
+            return cls._get_extension_agressively(contents)
+
+        return None
+
+    @classmethod
+    def _get_extension_from_content_type(
+        cls, content_type: str
+    ) -> Optional[FileExtension]:
         content_type_map = {
             "application/pdf": FileExtension.PDF,
             "application/json": FileExtension.JSON,
