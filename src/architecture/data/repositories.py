@@ -9,16 +9,21 @@ separation of concerns within the application.
 import abc
 from typing import (
     Any,
-    Generic,
     Optional,
     Protocol,
     Sequence,
     runtime_checkable,
-    TypeVar,
 )
 
-T_co = TypeVar("T_co", covariant=True)
-T = TypeVar("T")
+"""
+.########..########..######..##.....##.##.......########..######.
+.##.....##.##.......##....##.##.....##.##..........##....##....##
+.##.....##.##.......##.......##.....##.##..........##....##......
+.########..######....######..##.....##.##..........##.....######.
+.##...##...##.............##.##.....##.##..........##..........##
+.##....##..##.......##....##.##.....##.##..........##....##....##
+.##.....##.########..######...#######..########....##.....######.
+"""
 
 
 class CreateResult:
@@ -36,12 +41,12 @@ class CreateResult:
         self.uid = uid
 
 
-class ReadResult(Generic[T_co]):
+class ReadResult[T]:
     """Result of a read operation, including the retrieved entity."""
 
-    entity: T_co
+    entity: T
 
-    def __init__(self, entity: T_co) -> None:
+    def __init__(self, entity: T) -> None:
         """
         Initialize a ReadResult instance.
 
@@ -51,12 +56,12 @@ class ReadResult(Generic[T_co]):
         self.entity = entity
 
 
-class ReadAllResult(Generic[T_co]):
+class ReadAllResult[T]:
     """Result of a read all operation, including a list of all entities."""
 
-    entities: Sequence[T_co]
+    entities: Sequence[T]
 
-    def __init__(self, entities: list[T_co]) -> None:
+    def __init__(self, entities: list[T]) -> None:
         """
         Initialize a ReadAllResult instance.
 
@@ -92,8 +97,98 @@ class DeleteResult:
         self.affected_records = affected_records
 
 
+"""
+.########..########...#######..########..#######...######...#######..##........######.
+.##.....##.##.....##.##.....##....##....##.....##.##....##.##.....##.##.......##....##
+.##.....##.##.....##.##.....##....##....##.....##.##.......##.....##.##.......##......
+.########..########..##.....##....##....##.....##.##.......##.....##.##........######.
+.##........##...##...##.....##....##....##.....##.##.......##.....##.##.............##
+.##........##....##..##.....##....##....##.....##.##....##.##.....##.##.......##....##
+.##........##.....##..#######.....##.....#######...######...#######..########..######.
+"""
+
+
+class AsyncCreatable[T](Protocol):
+    @abc.abstractmethod
+    async def create(
+        self, entity: T, *, filters: Optional[dict[str, Any]] = None
+    ) -> CreateResult: ...
+
+
+class AsyncReadable[T](Protocol):
+    @abc.abstractmethod
+    async def read(
+        self, q: str, *, filters: Optional[dict[str, Any]] = None
+    ) -> ReadResult[T]: ...
+
+    @abc.abstractmethod
+    async def read_all(
+        self, *, filters: Optional[dict[str, Any]] = None
+    ) -> ReadAllResult[T]: ...
+
+
+class AsyncUpdatable[T](Protocol):
+    @abc.abstractmethod
+    async def update(
+        self, q: str, entity: T, *, filters: Optional[dict[str, Any]] = None
+    ) -> UpdateResult: ...
+
+
+class AsyncDeletable(Protocol):
+    @abc.abstractmethod
+    async def delete(
+        self, q: str, *, filters: Optional[dict[str, Any]] = None
+    ) -> DeleteResult: ...
+
+
+class Creatable[T](Protocol):
+    @abc.abstractmethod
+    def create(
+        self, entity: T, *, filters: Optional[dict[str, Any]] = None
+    ) -> CreateResult: ...
+
+
+class Readable[T](Protocol):
+    @abc.abstractmethod
+    def read(
+        self, q: str, *, filters: Optional[dict[str, Any]] = None
+    ) -> ReadResult[T]: ...
+
+    @abc.abstractmethod
+    def read_all(
+        self, *, filters: Optional[dict[str, Any]] = None
+    ) -> ReadAllResult[T]: ...
+
+
+class Updatable[T](Protocol):
+    @abc.abstractmethod
+    def update(
+        self, q: str, entity: T, *, filters: Optional[dict[str, Any]] = None
+    ) -> UpdateResult: ...
+
+
+class Deletable(Protocol):
+    @abc.abstractmethod
+    def delete(
+        self, q: str, *, filters: Optional[dict[str, Any]] = None
+    ) -> DeleteResult: ...
+
+
+"""
+.########..########.########...#######...######.
+.##.....##.##.......##.....##.##.....##.##....##
+.##.....##.##.......##.....##.##.....##.##......
+.########..######...########..##.....##..######.
+.##...##...##.......##........##.....##.......##
+.##....##..##.......##........##.....##.##....##
+.##.....##.########.##.........#######...######.
+"""
+
+
 @runtime_checkable
-class AsyncRepository(Protocol[T]):
+class AsyncRepository[T](
+    AsyncCreatable[T], AsyncReadable[T], AsyncUpdatable[T], AsyncDeletable, Protocol
+):
     @abc.abstractmethod
     async def create(
         self, entity: T, *, filters: Optional[dict[str, Any]] = None
@@ -121,7 +216,7 @@ class AsyncRepository(Protocol[T]):
 
 
 @runtime_checkable
-class Repository(Protocol[T]):
+class Repository[T](Creatable[T], Readable[T], Updatable[T], Deletable, Protocol):
     @abc.abstractmethod
     def create(
         self, entity: T, *, filters: Optional[dict[str, Any]] = None

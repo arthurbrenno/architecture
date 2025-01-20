@@ -1,9 +1,7 @@
-from typing import Callable, Type, TypeVar
-
-T = TypeVar("T")
+from typing import Callable, Type
 
 
-def implements(_proto, /) -> Callable[[Type[T]], Type[T]]:
+def implements[T](_proto, /) -> Callable[[Type[T]], Type[T]]:
     """
     A decorator to indicate that a class implements a given Protocol.
     This decorator has no runtime impact and serves purely as documentation.

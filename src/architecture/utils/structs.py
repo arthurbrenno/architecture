@@ -1,10 +1,8 @@
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional
 import msgspec
 
-S = TypeVar("S", bound=msgspec.Struct)
 
-
-def structify(
+def structify[S: msgspec.Struct](
     data: dict[str, Any],
     struct: type[S],
     decoder: Optional[msgspec.json.Decoder[S]] = None,

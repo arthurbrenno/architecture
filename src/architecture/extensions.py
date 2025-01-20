@@ -8,17 +8,12 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
-    TypeVar,
     cast,
     overload,
 )
 
 import msgspec
 from pydantic_core import core_schema
-
-U = TypeVar("U")
-K = TypeVar("K")
-V = TypeVar("V")
 
 
 class Maybe[T = object](msgspec.Struct, frozen=True):
@@ -164,7 +159,7 @@ class Maybe[T = object](msgspec.Struct, frozen=True):
         except Exception:
             return Maybe[object](obj=None)
 
-    def map(self, func: Callable[[T], U]) -> Maybe[U]:
+    def map[U](self, func: Callable[[T], U]) -> Maybe[U]:
         """
         Apply a function to the wrapped object if it's not `None`.
 
@@ -321,10 +316,10 @@ class Maybe[T = object](msgspec.Struct, frozen=True):
         return iter(())
 
     @overload
-    def __getitem__(self: Maybe[Mapping[K, V]], key: K) -> Maybe[V]: ...
+    def __getitem__[K, V](self: Maybe[Mapping[K, V]], key: K) -> Maybe[V]: ...
 
     @overload
-    def __getitem__(self: Maybe[Sequence[V]], key: int) -> Maybe[V]: ...
+    def __getitem__[V](self: Maybe[Sequence[V]], key: int) -> Maybe[V]: ...
 
     @overload
     def __getitem__(self, key: object) -> Maybe[object]: ...
@@ -437,7 +432,7 @@ class Maybe[T = object](msgspec.Struct, frozen=True):
         """
         return self.obj if self.obj is not None else default
 
-    def and_then(self, func: Callable[[T], Maybe[U]]) -> Maybe[U]:
+    def and_then[U](self, func: Callable[[T], Maybe[U]]) -> Maybe[U]:
         """
         Chain operations that return `Maybe` instances.
 
