@@ -342,6 +342,9 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             file.content_type
         )
 
+        if extension is None and file.content_type == "application/octet-stream":
+            extension = FileExtension.TXT
+
         if extension is None:
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
