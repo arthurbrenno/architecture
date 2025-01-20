@@ -2,35 +2,43 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import mimetypes
-import tempfile
 import sys
+import tempfile
 import zipfile
 from enum import Enum
 from http.cookiejar import CookieJar
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, Optional, Sequence
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    BinaryIO,
+    Callable,
+    Iterable,
+    Literal,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    TypeAlias,
+    overload,
+)
+
+import msgspec
+import requests
 from requests import Response
 from requests.auth import AuthBase
 from requests.models import PreparedRequest
-import msgspec
-import requests
-from architecture.utils.decorators import ensure_module_installed
-from typing import (
-    Callable,
-    Iterable,
-    Mapping,
-    MutableMapping,
-    TypeAlias,
-    overload,
-    Literal,
-)
 from typing_extensions import Self
 
+from architecture.log import create_logger
+from architecture.utils.decorators import ensure_module_installed
 
 if TYPE_CHECKING:
-    from fastapi import UploadFile as FastAPIUploadFile
     from _typeshed import SupportsItems, SupportsRead
+    from fastapi import UploadFile as FastAPIUploadFile
     from litestar.datastructures import UploadFile as LitestarUploadFile
 
     _TextMapping: TypeAlias = MutableMapping[str, str]
@@ -89,6 +97,8 @@ if TYPE_CHECKING:
     _Auth: TypeAlias = (
         tuple[str, str] | AuthBase | Callable[[PreparedRequest], PreparedRequest]
     )
+
+debug_logger = create_logger(__name__, level=logging.DEBUG)
 
 
 class FileExtension(str, Enum):
@@ -338,10 +348,16 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     def from_litestar_upload_file(
         cls: type[RawFile], file: LitestarUploadFile, is_zip: bool = False
     ) -> RawFile | Sequence[RawFile]:
+        filename = file.filename
+        content_type = file.content_type
         file_contents = file.file.read()
+
+        debug_logger.debug(f"File content type: {content_type}")
+        debug_logger.debug(f"File name: {filename}")
+
         extension: Optional[FileExtension] = cls._find_extension(
-            content_type=file.content_type,
-            filename=file.filename,
+            content_type=content_type,
+            filename=filename,
             contents=file_contents,
         )
 
@@ -669,9 +685,30 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         )
 
     @classmethod
-    def _get_extension_agressively(cls, contents: bytes) -> Optional[FileExtension]:
-        # Implement this method
-        pass
+    def _get_extension_agressivelly(cls, contents: bytes) -> Optional[FileExtension]:
+        file_signatures: dict[bytes, FileExtension] = {
+            b"\x89PNG\r\n\x1a\n": FileExtension.PNG,
+            b"\xff\xd8\xff\xe0": FileExtension.JPEG,
+            b"\xff\xd8\xff\xe1": FileExtension.JPG,
+            b"\xff\xd8\xff\xe8": FileExtension.JPG,
+            b"PK\x03\x04": FileExtension.ZIP,
+            b"MZ": FileExtension.DOC,
+            b"%PDF-": FileExtension.PDF,
+            b"<!DOCTYPE HTML": FileExtension.HTML,
+            b"{\\rtf1": FileExtension.DOC,
+            b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1": FileExtension.DOC,
+            b"Rar!": FileExtension.RAR,
+            b"<?xml": FileExtension.XML,
+            b"GIF87a": FileExtension.GIF,
+            b"GIF89a": FileExtension.GIF,
+            b"\x49\x49*\x00": FileExtension.TIFF,  # Little-endian TIFF
+            b"\x4d\x4d\x00*": FileExtension.TIFF,  # Big-endian TIFF
+            b"BM": FileExtension.BMP,
+        }
+        for signature, extension in file_signatures.items():
+            if contents.startswith(signature):
+                return extension
+        return None
 
     @classmethod
     def _find_extension(
@@ -685,7 +722,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         if filename:
             return cls._get_extension_from_filename(filename)
         if contents:
-            return cls._get_extension_agressively(contents)
+            return cls._get_extension_agressivelly(contents)
 
         return None
 
