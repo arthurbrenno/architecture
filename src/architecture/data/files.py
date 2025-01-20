@@ -718,10 +718,10 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         filename: Optional[str] = None,
         contents: Optional[bytes] = None,
     ) -> Optional[FileExtension]:
+        if filename:  # most important
+            return cls._get_extension_from_filename(filename)
         if content_type:
             return cls._get_extension_from_content_type(content_type)
-        if filename:
-            return cls._get_extension_from_filename(filename)
         if contents:
             return cls._get_extension_agressivelly(contents)
 
