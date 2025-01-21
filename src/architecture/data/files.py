@@ -6,7 +6,6 @@ import logging
 import mimetypes
 import sys
 import tempfile
-import zipfile
 from enum import Enum
 from http.cookiejar import CookieJar
 from pathlib import Path
@@ -129,6 +128,15 @@ class FileExtension(str, Enum):
     TIF = "tif"
     PPTM = "pptm"
     XLS = "xls"
+    MP3 = "mp3"
+    FLAC = "flac"
+    MP4 = "mp4"
+    MPEG = "mpeg"
+    MPGA = "mpga"
+    M4A = "m4a"
+    OGG = "ogg"
+    WAV = "wav"
+    WEBM = "webm"
 
 
 class RawFile(msgspec.Struct, frozen=True, gc=False):
@@ -677,6 +685,9 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             b"\x49\x49*\x00": FileExtension.TIFF,  # Little-endian TIFF
             b"\x4d\x4d\x00*": FileExtension.TIFF,  # Big-endian TIFF
             b"BM": FileExtension.BMP,
+            b"PK\x01\x02": FileExtension.PKT,
+            b"\x49\x44\x33": FileExtension.MP3,
+            b"\x66\x74\x79\x70": FileExtension.MP4,
         }
         for signature, extension in file_signatures.items():
             if contents.startswith(signature):
