@@ -107,20 +107,16 @@ def find_extension(
     contents: Optional[bytes] = None,
     url: Optional[str] = None,
 ) -> FileExtension:
-    ext: Optional[FileExtension] = None
-    if filename:  # most important
-        ext = get_extension_from_filename(filename)
-    if content_type:
-        ext = get_extension_from_content_type(content_type)
-    if contents:
-        ext = get_extension_agressivelly(contents)
-    if url:
-        ext = get_extension_from_url(url)
+    if filename and (ext := get_extension_from_filename(filename)):
+        return ext
+    if content_type and (ext := get_extension_from_content_type(content_type)):
+        return ext
+    if contents and (ext := get_extension_agressivelly(contents)):
+        return ext
+    if url and (ext := get_extension_from_url(url)):
+        return ext
 
-    if ext is None:
-        raise ValueError("Unable to determine the file extension.")
-
-    return ext
+    raise ValueError("Unable to determine the file extension.")
 
 
 def get_extension_from_url(url: str) -> Optional[FileExtension]:
@@ -394,7 +390,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     extension: FileExtension
 
     @classmethod
-    def from_file_path(cls: type[RawFile], file_path: str) -> RawFile:
+    def from_file_path(cls, file_path: str) -> RawFile:
         path = Path(file_path)
         if not path.exists():
             raise FileNotFoundError(f"File not found at {file_path}")
@@ -439,19 +435,19 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     @overload
     @classmethod
     def from_litestar_upload_file(
-        cls: type[RawFile], file: LitestarUploadFile, is_zip: Literal[False] = False
+        cls, file: LitestarUploadFile, is_zip: Literal[False] = False
     ) -> RawFile: ...
 
     @overload
     @classmethod
     def from_litestar_upload_file(
-        cls: type[RawFile], file: LitestarUploadFile, is_zip: Literal[True]
+        cls, file: LitestarUploadFile, is_zip: Literal[True]
     ) -> Sequence[RawFile]: ...
 
     @classmethod
     @ensure_module_installed("litestar", "litestar")
     def from_litestar_upload_file(
-        cls: type[RawFile], file: LitestarUploadFile, is_zip: bool = False
+        cls, file: LitestarUploadFile, is_zip: bool = False
     ) -> RawFile | Sequence[RawFile]:
         filename = file.filename
         content_type = file.content_type
@@ -460,15 +456,11 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         debug_logger.debug(f"File content type: {content_type}")
         debug_logger.debug(f"File name: {filename}")
 
-        extension: Optional[FileExtension] = find_extension(
-            content_type=content_type,
+        extension: FileExtension = find_extension(
             filename=filename,
+            content_type=content_type,
             contents=file_contents,
         )
-
-        if extension is None:
-            # More aggresive approach
-            raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
         if extension == FileExtension.ZIP:
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -482,9 +474,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
     @classmethod
     @ensure_module_installed("fastapi", "fastapi")
-    def from_fastapi_upload_file(
-        cls: type[RawFile], file: FastAPIUploadFile
-    ) -> RawFile:
+    def from_fastapi_upload_file(cls, file: FastAPIUploadFile) -> RawFile:
         if file.content_type is None:
             raise ValueError("The content type of the file is missing.")
         file_contents = file.file.read()
