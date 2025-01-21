@@ -106,17 +106,21 @@ def find_extension(
     content_type: Optional[str] = None,
     contents: Optional[bytes] = None,
     url: Optional[str] = None,
-) -> Optional[FileExtension]:
+) -> FileExtension:
+    ext: Optional[FileExtension] = None
     if filename:  # most important
-        return get_extension_from_filename(filename)
+        ext = get_extension_from_filename(filename)
     if content_type:
-        return get_extension_from_content_type(content_type)
+        ext = get_extension_from_content_type(content_type)
     if contents:
-        return get_extension_agressivelly(contents)
+        ext = get_extension_agressivelly(contents)
     if url:
-        return get_extension_from_url(url)
+        ext = get_extension_from_url(url)
 
-    return None
+    if ext is None:
+        raise ValueError("Unable to determine the file extension.")
+
+    return ext
 
 
 def get_extension_from_url(url: str) -> Optional[FileExtension]:
