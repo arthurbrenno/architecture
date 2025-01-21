@@ -498,7 +498,11 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         if extension is None:
             raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
-        return cls(name=file.filename, contents=file_contents, extension=extension)
+        filename = file.filename
+        if filename is None:
+            raise ValueError("The filename of the file is missing.")
+
+        return cls(name=filename, contents=file_contents, extension=extension)
 
     @classmethod
     def from_url(
