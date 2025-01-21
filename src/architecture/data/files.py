@@ -100,6 +100,91 @@ if TYPE_CHECKING:
 debug_logger = create_logger(__name__, level=logging.DEBUG)
 
 
+def find_extension(
+    *,
+    filename: Optional[str] = None,
+    content_type: Optional[str] = None,
+    contents: Optional[bytes] = None,
+    url: Optional[str] = None,
+) -> Optional[FileExtension]:
+    if filename:  # most important
+        return get_extension_from_filename(filename)
+    if content_type:
+        return get_extension_from_content_type(content_type)
+    if contents:
+        return get_extension_agressivelly(contents)
+    if url:
+        return get_extension_from_url(url)
+
+    return None
+
+
+def get_extension_from_url(url: str) -> Optional[FileExtension]:
+    """Extracts the file extension from a URL."""
+    from urllib.parse import urlparse
+
+    parsed_url = urlparse(url)
+    path = parsed_url.path
+    if not path:
+        return None
+    name = path.split("/")[-1]
+    if "." not in name:
+        return None
+
+    return get_extension_from_filename(name)
+
+
+def get_extension_from_filename(filename: str) -> Optional[FileExtension]:
+    ext = filename.split(".")[-1]
+    return (
+        FileExtension[ext.upper()] if ext.upper() in FileExtension.__members__ else None
+    )
+
+
+def get_extension_agressivelly(contents: bytes) -> Optional[FileExtension]:
+    file_signatures: dict[bytes, FileExtension] = {
+        b"\x89PNG\r\n\x1a\n": FileExtension.PNG,
+        b"\xff\xd8\xff\xe0": FileExtension.JPEG,
+        b"\xff\xd8\xff\xe1": FileExtension.JPG,
+        b"\xff\xd8\xff\xe8": FileExtension.JPG,
+        b"PK\x03\x04": FileExtension.ZIP,
+        b"MZ": FileExtension.DOC,
+        b"%PDF-": FileExtension.PDF,
+        b"<!DOCTYPE HTML": FileExtension.HTML,
+        b"{\\rtf1": FileExtension.DOC,
+        b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1": FileExtension.DOC,
+        b"Rar!": FileExtension.RAR,
+        b"<?xml": FileExtension.XML,
+        b"GIF87a": FileExtension.GIF,
+        b"GIF89a": FileExtension.GIF,
+        b"\x49\x49*\x00": FileExtension.TIFF,  # Little-endian TIFF
+        b"\x4d\x4d\x00*": FileExtension.TIFF,  # Big-endian TIFF
+        b"BM": FileExtension.BMP,
+        b"PK\x01\x02": FileExtension.PKT,
+        b"\x49\x44\x33": FileExtension.MP3,
+        b"\x66\x74\x79\x70": FileExtension.MP4,
+    }
+    for signature, extension in file_signatures.items():
+        if contents.startswith(signature):
+            return extension
+    return None
+
+
+def get_extension_from_content_type(content_type: str) -> Optional[FileExtension]:
+    content_type_map = {
+        "application/pdf": FileExtension.PDF,
+        "application/json": FileExtension.JSON,
+        "image/png": FileExtension.PNG,
+        "image/jpeg": FileExtension.JPEG,
+        "image/jpg": FileExtension.JPG,
+        "text/html": FileExtension.HTML,
+        "text/plain": FileExtension.TXT,
+        "application/x-zip-compressed": FileExtension.ZIP,
+        # Add more mappings as needed
+    }
+    return content_type_map.get(content_type, None)
+
+
 class FileExtension(str, Enum):
     PDF = "pdf"
     JSON = "json"
@@ -137,6 +222,14 @@ class FileExtension(str, Enum):
     OGG = "ogg"
     WAV = "wav"
     WEBM = "webm"
+
+    def as_mime_type(self) -> str:
+        """Returns the MIME type associated with the file extension."""
+        mime_type = mimetypes.guess_type(f"dummy.{self.value}")[0]
+        if mime_type is None:
+            raise ValueError(f"Unknown MIME type for extension: {self.value}")
+
+        return mime_type
 
 
 class RawFile(msgspec.Struct, frozen=True, gc=False):
@@ -363,7 +456,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         debug_logger.debug(f"File content type: {content_type}")
         debug_logger.debug(f"File name: {filename}")
 
-        extension: Optional[FileExtension] = cls._find_extension(
+        extension: Optional[FileExtension] = find_extension(
             content_type=content_type,
             filename=filename,
             contents=file_contents,
@@ -392,8 +485,10 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             raise ValueError("The content type of the file is missing.")
         file_contents = file.file.read()
 
-        extension: Optional[FileExtension] = cls._find_extension(
-            file.content_type, filename=file.filename, contents=file_contents
+        extension: Optional[FileExtension] = find_extension(
+            content_type=file.content_type,
+            filename=file.filename,
+            contents=file_contents,
         )
 
         if extension is None:
@@ -447,7 +542,9 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             data = str(data).encode("utf-8")
 
         file_extension = extension or (
-            cls._find_extension(response.headers.get("Content-Type", "").split(";")[0])
+            find_extension(
+                content_type=response.headers.get("Content-Type", "").split(";")[0]
+            )
             or FileExtension.HTML
         )
 
@@ -472,7 +569,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             else:
                 head_object = s3.head_object(Bucket=bucket_name, Key=object_key)
                 content_type = head_object.get("ContentType", "")
-                extension = cls._find_extension(content_type)
+                extension = find_extension(content_type=content_type)
 
         if not extension:
             raise ValueError(
@@ -514,7 +611,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
                         "Unable to determine the file extension. Please specify it explicitly."
                     )
 
-                extension = cls._find_extension(content_type)
+                extension = find_extension(content_type=content_type)
 
         if not extension:
             raise ValueError(
@@ -544,7 +641,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             else:
                 blob.reload()
                 content_type = blob.content_type
-                extension = cls._find_extension(content_type)
+                extension = find_extension(content_type=content_type)
 
         if not extension:
             raise ValueError(
@@ -655,74 +752,3 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
     def __del__(self):
         pass  # No cleanup needed
-
-    @classmethod
-    def _get_extension_from_filename(cls, filename: str) -> Optional[FileExtension]:
-        ext = filename.split(".")[-1]
-        return (
-            FileExtension[ext.upper()]
-            if ext.upper() in FileExtension.__members__
-            else None
-        )
-
-    @classmethod
-    def _get_extension_agressivelly(cls, contents: bytes) -> Optional[FileExtension]:
-        file_signatures: dict[bytes, FileExtension] = {
-            b"\x89PNG\r\n\x1a\n": FileExtension.PNG,
-            b"\xff\xd8\xff\xe0": FileExtension.JPEG,
-            b"\xff\xd8\xff\xe1": FileExtension.JPG,
-            b"\xff\xd8\xff\xe8": FileExtension.JPG,
-            b"PK\x03\x04": FileExtension.ZIP,
-            b"MZ": FileExtension.DOC,
-            b"%PDF-": FileExtension.PDF,
-            b"<!DOCTYPE HTML": FileExtension.HTML,
-            b"{\\rtf1": FileExtension.DOC,
-            b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1": FileExtension.DOC,
-            b"Rar!": FileExtension.RAR,
-            b"<?xml": FileExtension.XML,
-            b"GIF87a": FileExtension.GIF,
-            b"GIF89a": FileExtension.GIF,
-            b"\x49\x49*\x00": FileExtension.TIFF,  # Little-endian TIFF
-            b"\x4d\x4d\x00*": FileExtension.TIFF,  # Big-endian TIFF
-            b"BM": FileExtension.BMP,
-            b"PK\x01\x02": FileExtension.PKT,
-            b"\x49\x44\x33": FileExtension.MP3,
-            b"\x66\x74\x79\x70": FileExtension.MP4,
-        }
-        for signature, extension in file_signatures.items():
-            if contents.startswith(signature):
-                return extension
-        return None
-
-    @classmethod
-    def _find_extension(
-        cls,
-        content_type: Optional[str] = None,
-        filename: Optional[str] = None,
-        contents: Optional[bytes] = None,
-    ) -> Optional[FileExtension]:
-        if filename:  # most important
-            return cls._get_extension_from_filename(filename)
-        if content_type:
-            return cls._get_extension_from_content_type(content_type)
-        if contents:
-            return cls._get_extension_agressivelly(contents)
-
-        return None
-
-    @classmethod
-    def _get_extension_from_content_type(
-        cls, content_type: str
-    ) -> Optional[FileExtension]:
-        content_type_map = {
-            "application/pdf": FileExtension.PDF,
-            "application/json": FileExtension.JSON,
-            "image/png": FileExtension.PNG,
-            "image/jpeg": FileExtension.JPEG,
-            "image/jpg": FileExtension.JPG,
-            "text/html": FileExtension.HTML,
-            "text/plain": FileExtension.TXT,
-            "application/x-zip-compressed": FileExtension.ZIP,
-            # Add more mappings as needed
-        }
-        return content_type_map.get(content_type, None)
