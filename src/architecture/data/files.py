@@ -462,14 +462,6 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             contents=file_contents,
         )
 
-        if extension == FileExtension.ZIP:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_file_path = Path(temp_dir) / file.filename
-                with open(temp_file_path, "wb") as f:
-                    f.write(file_contents)
-
-                return cls.from_zip(str(temp_file_path))
-
         return cls(name=file.filename, contents=file_contents, extension=extension)
 
     @classmethod
