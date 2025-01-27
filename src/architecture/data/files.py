@@ -5,7 +5,6 @@ import hashlib
 import logging
 import mimetypes
 import sys
-import tempfile
 from enum import Enum
 from http.cookiejar import CookieJar
 from pathlib import Path
@@ -172,15 +171,117 @@ def get_extension_agressivelly(contents: bytes) -> Optional[FileExtension]:
 
 def get_extension_from_content_type(content_type: str) -> Optional[FileExtension]:
     content_type_map = {
-        "application/pdf": FileExtension.PDF,
-        "application/json": FileExtension.JSON,
-        "image/png": FileExtension.PNG,
-        "image/jpeg": FileExtension.JPEG,
-        "image/jpg": FileExtension.JPG,
-        "text/html": FileExtension.HTML,
+        # Text types
         "text/plain": FileExtension.TXT,
+        "text/html": FileExtension.HTML,
+        "text/css": FileExtension.CSS,
+        "text/csv": FileExtension.CSV,
+        "text/calendar": FileExtension.ICS,
+        "text/javascript": FileExtension.JS,
+        "text/markdown": FileExtension.MD,
+        "text/vcard": FileExtension.VCF,
+        "text/xml": FileExtension.XML,
+        "text/x-vcard": FileExtension.VCF,
+        # Application types
+        "application/octet-stream": FileExtension.BIN,
+        "application/json": FileExtension.JSON,
+        "application/pdf": FileExtension.PDF,
+        "application/zip": FileExtension.ZIP,
         "application/x-zip-compressed": FileExtension.ZIP,
-        # Add more mappings as needed
+        "application/x-rar-compressed": FileExtension.RAR,
+        "application/x-tar": FileExtension.TAR,
+        "application/x-bzip": FileExtension.BZ,
+        "application/x-bzip2": FileExtension.BZ2,
+        "application/x-7z-compressed": FileExtension.SEVENZ,
+        "application/x-msdownload": FileExtension.EXE,
+        "application/x-shockwave-flash": FileExtension.SWF,
+        "application/xhtml+xml": FileExtension.XHTML,
+        "application/xml": FileExtension.XML,
+        "application/atom+xml": FileExtension.ATOM,
+        "application/rss+xml": FileExtension.RSS,
+        "application/x-latex": FileExtension.LATEX,
+        "application/x-httpd-php": FileExtension.PHP,
+        "application/postscript": FileExtension.PS,
+        "application/sql": FileExtension.SQL,
+        "application/x-dvi": FileExtension.DVI,
+        "application/x-tex": FileExtension.TEX,
+        "application/msword": FileExtension.DOC,
+        "application/vnd.ms-excel": FileExtension.XLS,
+        "application/vnd.ms-powerpoint": FileExtension.PPT,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileExtension.DOCX,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileExtension.XLSX,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileExtension.PPTX,
+        "application/vnd.oasis.opendocument.text": FileExtension.ODT,
+        "application/vnd.android.package-archive": FileExtension.APK,
+        "application/java-archive": FileExtension.JAR,
+        "application/x-debian-package": FileExtension.DEB,
+        "application/x-redhat-package-manager": FileExtension.RPM,
+        # Image types
+        "image/jpeg": FileExtension.JPG,
+        "image/png": FileExtension.PNG,
+        "image/gif": FileExtension.GIF,
+        "image/bmp": FileExtension.BMP,
+        "image/tiff": FileExtension.TIFF,
+        "image/svg+xml": FileExtension.SVG,
+        "image/webp": FileExtension.WEBP,
+        "image/x-icon": FileExtension.ICO,
+        "image/vnd.djvu": FileExtension.DJVU,
+        "image/x-ms-bmp": FileExtension.BMP,
+        # Audio types
+        "audio/mpeg": FileExtension.MP3,
+        "audio/ogg": FileExtension.OGG,
+        "audio/wav": FileExtension.WAV,
+        "audio/webm": FileExtension.WEBA,
+        "audio/aac": FileExtension.AAC,
+        "audio/midi": FileExtension.MID,
+        "audio/x-wav": FileExtension.WAV,
+        "audio/x-aiff": FileExtension.AIFF,
+        # Video types
+        "video/mp4": FileExtension.MP4,
+        "video/ogg": FileExtension.OGV,
+        "video/webm": FileExtension.WEBM,
+        "video/x-msvideo": FileExtension.AVI,
+        "video/x-matroska": FileExtension.MKV,
+        "video/quicktime": FileExtension.MOV,
+        "video/x-ms-wmv": FileExtension.WMV,
+        "video/x-flv": FileExtension.FLV,
+        "video/3gpp": FileExtension.THREE_GP,
+        # Font types
+        "font/ttf": FileExtension.TTF,
+        "font/otf": FileExtension.OTF,
+        "font/woff": FileExtension.WOFF,
+        "font/woff2": FileExtension.WOFF2,
+        # Message types
+        "message/rfc822": FileExtension.EML,
+        "message/news": FileExtension.NWS,
+        # Chemical/Model types
+        "chemical/x-pdb": FileExtension.PDB,
+        "chemical/x-xyz": FileExtension.XYZ,
+        "model/3mf": FileExtension.THREE_MF,
+        "model/obj": FileExtension.OBJ,
+        "model/stl": FileExtension.STL,
+        # Legacy/Obscure types
+        "application/x-msmetafile": FileExtension.WMF,
+        "application/x-msaccess": FileExtension.MDB,
+        "application/x-csh": FileExtension.CSH,
+        "application/x-sh": FileExtension.SH,
+        "application/x-tcl": FileExtension.TCL,
+        "application/x-texinfo": FileExtension.TE,
+        "application/x-troff": FileExtension.TR,
+        "application/x-wais-source": FileExtension.SRC,
+        "application/x-bcpio": FileExtension.BCPIO,
+        "application/x-cpio": FileExtension.CPIO,
+        "application/x-gtar": FileExtension.GTAR,
+        "application/x-hdf": FileExtension.HDF,
+        "application/x-netcdf": FileExtension.NC,
+        "application/x-shar": FileExtension.SHAR,
+        "application/x-sv4cpio": FileExtension.SV4CPIO,
+        "application/x-sv4crc": FileExtension.SV4CRC,
+        "application/x-ustar": FileExtension.USTAR,
+        "application/x-director": FileExtension.DCR,
+        "application/x-envoy": FileExtension.EVY,
+        "application/x-mif": FileExtension.MIF,
+        "application/x-silverlight": FileExtension.SCR,
     }
     return content_type_map.get(content_type, None)
 
@@ -222,6 +323,113 @@ class FileExtension(str, Enum):
     OGG = "ogg"
     WAV = "wav"
     WEBM = "webm"
+    MOV = "mov"
+    ICS = "ics"
+    CSS = "css"
+    JS = "js"
+    VCF = "vcf"
+    BIN = "bin"
+    TAR = "tar"
+    BZ = "bz"
+    BZ2 = "bz2"
+    SEVENZ = "7z"
+    EXE = "exe"
+    SWF = "swf"
+    XHTML = "xhtml"
+    ATOM = "atom"
+    RSS = "rss"
+    LATEX = "latex"
+    PHP = "php"
+    PS = "ps"
+    SQL = "sql"
+    DVI = "dvi"
+    TEX = "tex"
+    ODT = "odt"
+    APK = "apk"
+    JAR = "jar"
+    DEB = "deb"
+    RPM = "rpm"
+    SVG = "svg"
+    WEBP = "webp"
+    ICO = "ico"
+    DJVU = "djvu"
+    WEBA = "weba"
+    AAC = "aac"
+    MID = "mid"
+    AIFF = "aiff"
+    OGV = "ogv"
+    AVI = "avi"
+    MKV = "mkv"
+    WMV = "wmv"
+    FLV = "flv"
+    THREE_GP = "3gp"
+    TTF = "ttf"
+    OTF = "otf"
+    WOFF = "woff"
+    WOFF2 = "woff2"
+    EML = "eml"
+    NWS = "nws"
+    PDB = "pdb"
+    XYZ = "xyz"
+    THREE_MF = "3mf"
+    OBJ = "obj"
+    STL = "stl"
+    WMF = "wmf"
+    MDB = "mdb"
+    CSH = "csh"
+    SH = "sh"
+    TCL = "tcl"
+    TE = "te"
+    XI = "xi"
+    TR = "tr"
+    SRC = "src"
+    BCPIO = "bcpio"
+    CPIO = "cpio"
+    GTAR = "gtar"
+    HDF = "hdf"
+    NC = "nc"
+    SHAR = "shar"
+    SV4CPIO = "sv4cpio"
+    SV4CRC = "sv4crc"
+    USTAR = "ustar"
+    DCR = "dcr"
+    EVY = "evy"
+    MIF = "mif"
+    CDF = "cdf"
+    SCR = "scr"
+    DATA = "data"
+    RTF = "rtf"
+    KSWPS = "kswps"
+    XPSDOCUMENT = "xpsdocument"
+    ACROBAT = "acrobat"
+    STREAM = "stream"
+    PJPG = "pjpeg"
+    ZIP_COMPRESSED = "zip-compressed"
+    TEMPLATE = "template"
+    CHROME_EXTENSION = "chrome-extension"
+    REAL = "real"
+    OCTET = "octet"
+    SAVE = "save"
+    SLIDESHOW = "slideshow"
+    UNKNOWN = "unknown"
+    OCTETSTREAM = "octetstream"
+    TEXT = "text"
+    MACROENABLED = "macroenabled"
+    WORDPROCESSINGML = "wordprocessingml"
+    FORM_URLENCODED = "form-urlencoded"
+    TYPE = "type"
+    CBL = "cbl"
+    COMPRESSED = "compressed"
+    DOT_PDF = ".pdf"
+    SPREADSHEET = "spreadsheet"
+    DOWNLOAD = "download"
+    PRESENTATION = "presentation"
+    RICHTEXT = "richtext"
+    JAVASCRIPT = "javascript"
+    GRAPHICS = "graphics"
+    MSWORD = "msword"
+    DRAWING = "drawing"
+    RFC822 = "rfc822"
 
     def as_mime_type(self) -> str:
         """Returns the MIME type associated with the file extension."""
