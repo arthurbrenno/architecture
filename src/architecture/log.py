@@ -10,6 +10,11 @@ from rich.traceback import install as install_rich_traceback
 # Install rich traceback handling
 install_rich_traceback(show_locals=False)
 
+DEBUG = logging.DEBUG
+INFO = logging.INFO
+WARNING = logging.WARNING
+ERROR = logging.ERROR
+CRITICAL = logging.CRITICAL
 
 class RichHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
