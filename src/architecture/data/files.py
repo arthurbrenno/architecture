@@ -5,7 +5,6 @@ import hashlib
 import logging
 import mimetypes
 import sys
-from enum import Enum
 from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import (
@@ -24,6 +23,7 @@ from typing import (
     overload,
 )
 
+import magic
 import msgspec
 import requests
 from requests import Response
@@ -105,7 +105,7 @@ def find_extension(
     content_type: Optional[str] = None,
     contents: Optional[bytes] = None,
     url: Optional[str] = None,
-) -> FileExtension:
+) -> str:
     if filename and (ext := get_extension_from_filename(filename)):
         return ext
     if content_type and (ext := get_extension_from_content_type(content_type)):
@@ -118,326 +118,251 @@ def find_extension(
     raise ValueError("Unable to determine the file extension.")
 
 
-def get_extension_from_url(url: str) -> Optional[FileExtension]:
+def get_extension_from_url(url: str) -> str:
     """Extracts the file extension from a URL."""
     from urllib.parse import urlparse
 
     parsed_url = urlparse(url)
     path = parsed_url.path
     if not path:
-        return None
+        raise ValueError("The URL does not contain a path.")
     name = path.split("/")[-1]
     if "." not in name:
-        return None
+        raise ValueError("The URL does not contain a file extension.")
 
     return get_extension_from_filename(name)
 
 
-def get_extension_from_filename(filename: str) -> Optional[FileExtension]:
+def get_extension_from_filename(filename: str) -> str:
     ext = filename.split(".")[-1]
-    return (
-        FileExtension[ext.upper()] if ext.upper() in FileExtension.__members__ else None
-    )
+    return ext
 
 
-def get_extension_agressivelly(contents: bytes) -> Optional[FileExtension]:
-    file_signatures: dict[bytes, FileExtension] = {
-        b"\x89PNG\r\n\x1a\n": FileExtension.PNG,
-        b"\xff\xd8\xff\xe0": FileExtension.JPEG,
-        b"\xff\xd8\xff\xe1": FileExtension.JPG,
-        b"\xff\xd8\xff\xe8": FileExtension.JPG,
-        b"PK\x03\x04": FileExtension.ZIP,
-        b"MZ": FileExtension.DOC,
-        b"%PDF-": FileExtension.PDF,
-        b"<!DOCTYPE HTML": FileExtension.HTML,
-        b"{\\rtf1": FileExtension.DOC,
-        b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1": FileExtension.DOC,
-        b"Rar!": FileExtension.RAR,
-        b"<?xml": FileExtension.XML,
-        b"GIF87a": FileExtension.GIF,
-        b"GIF89a": FileExtension.GIF,
-        b"\x49\x49*\x00": FileExtension.TIFF,  # Little-endian TIFF
-        b"\x4d\x4d\x00*": FileExtension.TIFF,  # Big-endian TIFF
-        b"BM": FileExtension.BMP,
-        b"PK\x01\x02": FileExtension.PKT,
-        b"\x49\x44\x33": FileExtension.MP3,
-        b"\x66\x74\x79\x70": FileExtension.MP4,
-    }
-    for signature, extension in file_signatures.items():
-        if contents.startswith(signature):
-            return extension
-    return None
+def get_extension_agressivelly(contents: bytes) -> str:
+    def _detect_mime_type_manually(content: bytes) -> str:
+        # Ordered by category and signature specificity (longer/more specific first)
+        signature_map = [
+            # Images
+            ("image/jp2", [(0, bytes.fromhex("00 00 00 0C 6A 50 20 20"))]),
+            ("image/png", [(0, bytes.fromhex("89 50 4E 47 0D 0A 1A 0A"))]),
+            ("image/tiff", [(0, b"II*\x00"), (0, b"MM\x00*")]),
+            ("image/webp", [(8, b"WEBP")]),  # After 'RIFF' header
+            ("image/jpeg", [(0, bytes.fromhex("FF D8 FF"))]),
+            ("image/gif", [(0, b"GIF87a"), (0, b"GIF89a")]),
+            ("image/bmp", [(0, b"BM")]),
+            ("image/x-icon", [(0, bytes.fromhex("00 00 01 00"))]),
+            # Documents
+            ("application/pdf", [(0, b"%PDF")]),
+            ("application/msword", [(0, bytes.fromhex("D0 CF 11 E0 A1 B1 1A E1"))]),
+            (
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                [(0, b"PK\x03\x04"), (30, b"word/")],
+            ),
+            (
+                "application/vnd.ms-excel",
+                [(0, bytes.fromhex("D0 CF 11 E0 A1 B1 1A E1"))],
+            ),
+            (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                [(0, b"PK\x03\x04"), (30, b"xl/")],
+            ),
+            (
+                "application/vnd.ms-powerpoint",
+                [(0, bytes.fromhex("D0 CF 11 E0 A1 B1 1A E1"))],
+            ),
+            (
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                [(0, b"PK\x03\x04"), (30, b"ppt/")],
+            ),
+            ("application/rtf", [(0, b"{\\rtf")]),
+            # Archives
+            ("application/zip", [(0, b"PK\x03\x04")]),
+            ("application/x-rar-compressed", [(0, b"Rar!\x1a\x07\x00")]),
+            ("application/x-7z-compressed", [(0, bytes.fromhex("37 7A BC AF 27 1C"))]),
+            ("application/gzip", [(0, bytes.fromhex("1F 8B"))]),
+            ("application/x-xz", [(0, bytes.fromhex("FD 37 7A 58 5A 00"))]),
+            ("application/x-bzip2", [(0, b"BZh")]),
+            # Audio/Video
+            ("audio/mpeg", [(0, b"ID3")]),
+            ("audio/flac", [(0, b"fLaC")]),
+            ("audio/ogg", [(0, b"OggS")]),
+            ("audio/x-wav", [(8, b"WAVE")]),  # After 'RIFF' header
+            ("video/mp4", [(4, b"ftyp")]),
+            ("video/x-msvideo", [(8, b"AVI ")]),  # After 'RIFF' header
+            ("video/quicktime", [(4, b"ftypqt")]),
+            # System/Executables
+            ("application/x-msdownload", [(0, b"MZ")]),
+            ("application/vnd.ms-cab-compressed", [(0, b"MSCF")]),
+            ("application/x-shockwave-flash", [(0, b"FWS"), (0, b"CWS")]),
+            # Databases
+            ("application/vnd.sqlite3", [(0, b"SQLite format 3\x00")]),
+            # Text Formats
+            ("text/xml", [(0, b"<?xml")]),
+            ("application/json", [(0, b"{"), (0, b"[")]),  # Best-effort detection
+        ]
+
+        # Check magic numbers
+        for mime_type, signatures in signature_map:
+            for offset, sig in signatures:
+                if len(content) >= offset + len(sig):
+                    if content[offset : offset + len(sig)] == sig:
+                        return mime_type
+
+        # Special text detection
+        text_mimes = [
+            (b"\xef\xbb\xbf", "text/plain"),  # UTF-8 BOM
+            (b"\xfe\xff", "text/plain"),  # UTF-16 BE
+            (b"\xff\xfe", "text/plain"),  # UTF-16 LE
+            (b"\x00\x00\xfe\xff", "text/plain"),  # UTF-32 BE
+            (b"\xff\xfe\x00\x00", "text/plain"),  # UTF-32 LE
+        ]
+
+        for bom, mime in text_mimes:
+            if content.startswith(bom):
+                return mime
+
+        try:
+            content.decode("utf-8")
+            return "text/plain"
+        except UnicodeDecodeError:
+            pass
+
+        return "application/octet-stream"
+
+    try:
+        return magic.Magic(mime=True).from_buffer(contents)
+    except Exception:
+        return _detect_mime_type_manually(contents)
 
 
-def get_extension_from_content_type(content_type: str) -> Optional[FileExtension]:
+def get_extension_from_content_type(content_type: str) -> str:
     content_type_map = {
         # Text types
-        "text/plain": FileExtension.TXT,
-        "text/html": FileExtension.HTML,
-        "text/css": FileExtension.CSS,
-        "text/csv": FileExtension.CSV,
-        "text/calendar": FileExtension.ICS,
-        "text/javascript": FileExtension.JS,
-        "text/markdown": FileExtension.MD,
-        "text/vcard": FileExtension.VCF,
-        "text/xml": FileExtension.XML,
-        "text/x-vcard": FileExtension.VCF,
+        "text/plain": "txt",
+        "text/html": "html",
+        "text/css": "css",
+        "text/csv": "csv",
+        "text/calendar": "ics",
+        "text/javascript": "js",
+        "text/markdown": "md",
+        "text/vcard": "vcf",
+        "text/xml": "xml",
+        "text/x-vcard": "vcf",
         # Application types
-        "application/octet-stream": FileExtension.BIN,
-        "application/json": FileExtension.JSON,
-        "application/pdf": FileExtension.PDF,
-        "application/zip": FileExtension.ZIP,
-        "application/x-zip-compressed": FileExtension.ZIP,
-        "application/x-rar-compressed": FileExtension.RAR,
-        "application/x-tar": FileExtension.TAR,
-        "application/x-bzip": FileExtension.BZ,
-        "application/x-bzip2": FileExtension.BZ2,
-        "application/x-7z-compressed": FileExtension.SEVENZ,
-        "application/x-msdownload": FileExtension.EXE,
-        "application/x-shockwave-flash": FileExtension.SWF,
-        "application/xhtml+xml": FileExtension.XHTML,
-        "application/xml": FileExtension.XML,
-        "application/atom+xml": FileExtension.ATOM,
-        "application/rss+xml": FileExtension.RSS,
-        "application/x-latex": FileExtension.LATEX,
-        "application/x-httpd-php": FileExtension.PHP,
-        "application/postscript": FileExtension.PS,
-        "application/sql": FileExtension.SQL,
-        "application/x-dvi": FileExtension.DVI,
-        "application/x-tex": FileExtension.TEX,
-        "application/msword": FileExtension.DOC,
-        "application/vnd.ms-excel": FileExtension.XLS,
-        "application/vnd.ms-powerpoint": FileExtension.PPT,
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileExtension.DOCX,
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileExtension.XLSX,
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileExtension.PPTX,
-        "application/vnd.oasis.opendocument.text": FileExtension.ODT,
-        "application/vnd.android.package-archive": FileExtension.APK,
-        "application/java-archive": FileExtension.JAR,
-        "application/x-debian-package": FileExtension.DEB,
-        "application/x-redhat-package-manager": FileExtension.RPM,
+        "application/octet-stream": "bin",
+        "application/json": "json",
+        "application/pdf": "pdf",
+        "application/zip": "zip",
+        "application/x-zip-compressed": "zip",
+        "application/x-rar-compressed": "rar",
+        "application/x-tar": "tar",
+        "application/x-bzip": "bz",
+        "application/x-bzip2": "bz2",
+        "application/x-7z-compressed": "7z",
+        "application/x-msdownload": "exe",
+        "application/x-shockwave-flash": "swf",
+        "application/xhtml+xml": "xhtml",
+        "application/xml": "xml",
+        "application/atom+xml": "atom",
+        "application/rss+xml": "rss",
+        "application/x-latex": "latex",
+        "application/x-httpd-php": "php",
+        "application/postscript": "ps",
+        "application/sql": "sql",
+        "application/x-dvi": "dvi",
+        "application/x-tex": "tex",
+        "application/msword": "doc",
+        "application/vnd.ms-excel": "xls",
+        "application/vnd.ms-powerpoint": "ppt",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+        "application/vnd.oasis.opendocument.text": "odt",
+        "application/vnd.android.package-archive": "apk",
+        "application/java-archive": "jar",
+        "application/x-debian-package": "deb",
+        "application/x-redhat-package-manager": "rpm",
         # Image types
-        "image/jpeg": FileExtension.JPG,
-        "image/png": FileExtension.PNG,
-        "image/gif": FileExtension.GIF,
-        "image/bmp": FileExtension.BMP,
-        "image/tiff": FileExtension.TIFF,
-        "image/svg+xml": FileExtension.SVG,
-        "image/webp": FileExtension.WEBP,
-        "image/x-icon": FileExtension.ICO,
-        "image/vnd.djvu": FileExtension.DJVU,
-        "image/x-ms-bmp": FileExtension.BMP,
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/gif": "gif",
+        "image/bmp": "bmp",
+        "image/tiff": "tiff",
+        "image/svg+xml": "svg",
+        "image/webp": "webp",
+        "image/x-icon": "ico",
+        "image/vnd.djvu": "djvu",
+        "image/x-ms-bmp": "bmp",
+        "image/x-xcf": "xcf",
+        "image/x-pcx": "pcx",
+        "image/x-pict": "pict",
+        "image/x-portable-anymap": "pnm",
+        "image/x-portable-bitmap": "pbm",
+        "image/x-portable-graymap": "pgm",
+        "image/x-portable-pixmap": "ppm",
+        "image/x-rgb": "rgb",
+        "image/x-xbitmap": "xbm",
+        "image/x-jp2": "jp2",
         # Audio types
-        "audio/mpeg": FileExtension.MP3,
-        "audio/ogg": FileExtension.OGG,
-        "audio/wav": FileExtension.WAV,
-        "audio/webm": FileExtension.WEBA,
-        "audio/aac": FileExtension.AAC,
-        "audio/midi": FileExtension.MID,
-        "audio/x-wav": FileExtension.WAV,
-        "audio/x-aiff": FileExtension.AIFF,
+        "audio/mpeg": "mp3",
+        "audio/ogg": "ogg",
+        "audio/wav": "wav",
+        "audio/webm": "weba",
+        "audio/aac": "aac",
+        "audio/midi": "mid",
+        "audio/x-wav": "wav",
+        "audio/x-aiff": "aiff",
         # Video types
-        "video/mp4": FileExtension.MP4,
-        "video/ogg": FileExtension.OGV,
-        "video/webm": FileExtension.WEBM,
-        "video/x-msvideo": FileExtension.AVI,
-        "video/x-matroska": FileExtension.MKV,
-        "video/quicktime": FileExtension.MOV,
-        "video/x-ms-wmv": FileExtension.WMV,
-        "video/x-flv": FileExtension.FLV,
-        "video/3gpp": FileExtension.THREE_GP,
+        "video/mp4": "mp4",
+        "video/ogg": "ogv",
+        "video/webm": "webm",
+        "video/x-msvideo": "avi",
+        "video/x-matroska": "mkv",
+        "video/quicktime": "mov",
+        "video/x-ms-wmv": "wmv",
+        "video/x-flv": "flv",
+        "video/3gpp": "3gp",
         # Font types
-        "font/ttf": FileExtension.TTF,
-        "font/otf": FileExtension.OTF,
-        "font/woff": FileExtension.WOFF,
-        "font/woff2": FileExtension.WOFF2,
+        "font/ttf": "ttf",
+        "font/otf": "otf",
+        "font/woff": "woff",
+        "font/woff2": "woff2",
         # Message types
-        "message/rfc822": FileExtension.EML,
-        "message/news": FileExtension.NWS,
+        "message/rfc822": "eml",
+        "message/news": "nws",
         # Chemical/Model types
-        "chemical/x-pdb": FileExtension.PDB,
-        "chemical/x-xyz": FileExtension.XYZ,
-        "model/3mf": FileExtension.THREE_MF,
-        "model/obj": FileExtension.OBJ,
-        "model/stl": FileExtension.STL,
+        "chemical/x-pdb": "pdb",
+        "chemical/x-xyz": "xyz",
+        "model/3mf": "3mf",
+        "model/obj": "obj",
+        "model/stl": "stl",
         # Legacy/Obscure types
-        "application/x-msmetafile": FileExtension.WMF,
-        "application/x-msaccess": FileExtension.MDB,
-        "application/x-csh": FileExtension.CSH,
-        "application/x-sh": FileExtension.SH,
-        "application/x-tcl": FileExtension.TCL,
-        "application/x-texinfo": FileExtension.TE,
-        "application/x-troff": FileExtension.TR,
-        "application/x-wais-source": FileExtension.SRC,
-        "application/x-bcpio": FileExtension.BCPIO,
-        "application/x-cpio": FileExtension.CPIO,
-        "application/x-gtar": FileExtension.GTAR,
-        "application/x-hdf": FileExtension.HDF,
-        "application/x-netcdf": FileExtension.NC,
-        "application/x-shar": FileExtension.SHAR,
-        "application/x-sv4cpio": FileExtension.SV4CPIO,
-        "application/x-sv4crc": FileExtension.SV4CRC,
-        "application/x-ustar": FileExtension.USTAR,
-        "application/x-director": FileExtension.DCR,
-        "application/x-envoy": FileExtension.EVY,
-        "application/x-mif": FileExtension.MIF,
-        "application/x-silverlight": FileExtension.SCR,
+        "application/x-msmetafile": "wmf",
+        "application/x-msaccess": "mdb",
+        "application/x-csh": "csh",
+        "application/x-sh": "sh",
+        "application/x-tcl": "tcl",
+        "application/x-texinfo": "te",
+        "application/x-troff": "tr",
+        "application/x-wais-source": "src",
+        "application/x-bcpio": "bcpio",
+        "application/x-cpio": "cpio",
+        "application/x-gtar": "gtar",
+        "application/x-hdf": "hdf",
+        "application/x-netcdf": "nc",
+        "application/x-shar": "shar",
+        "application/x-sv4cpio": "sv4cpio",
+        "application/x-sv4crc": "sv4crc",
+        "application/x-ustar": "ustar",
+        "application/x-director": "dcr",
+        "application/x-envoy": "evy",
+        "application/x-mif": "mif",
+        "application/x-silverlight": "scr",
     }
-    return content_type_map.get(content_type, None)
-
-
-class FileExtension(str, Enum):
-    PDF = "pdf"
-    JSON = "json"
-    PNG = "png"
-    JPEG = "jpeg"
-    JPG = "jpg"
-    HTML = "html"
-    TXT = "txt"
-    MD = "md"
-    ZIP = "zip"
-    DOCX = "docx"
-    XLSX = "xlsx"
-    CSV = "csv"
-    PPTX = "pptx"
-    TIFF = "tiff"
-    GIF = "gif"
-    DWG = "dwg"
-    ALG = "alg"
-    DOC = "doc"
-    PPT = "ppt"
-    PKT = "pkt"
-    PKZ = "pkz"
-    RAR = "rar"
-    XML = "xml"
-    BMP = "bmp"
-    TIF = "tif"
-    PPTM = "pptm"
-    XLS = "xls"
-    MP3 = "mp3"
-    FLAC = "flac"
-    MP4 = "mp4"
-    MPEG = "mpeg"
-    MPGA = "mpga"
-    M4A = "m4a"
-    OGG = "ogg"
-    WAV = "wav"
-    WEBM = "webm"
-    MOV = "mov"
-    ICS = "ics"
-    CSS = "css"
-    JS = "js"
-    VCF = "vcf"
-    BIN = "bin"
-    TAR = "tar"
-    BZ = "bz"
-    BZ2 = "bz2"
-    SEVENZ = "7z"
-    EXE = "exe"
-    SWF = "swf"
-    XHTML = "xhtml"
-    ATOM = "atom"
-    RSS = "rss"
-    LATEX = "latex"
-    PHP = "php"
-    PS = "ps"
-    SQL = "sql"
-    DVI = "dvi"
-    TEX = "tex"
-    ODT = "odt"
-    APK = "apk"
-    JAR = "jar"
-    DEB = "deb"
-    RPM = "rpm"
-    SVG = "svg"
-    WEBP = "webp"
-    ICO = "ico"
-    DJVU = "djvu"
-    WEBA = "weba"
-    AAC = "aac"
-    MID = "mid"
-    AIFF = "aiff"
-    OGV = "ogv"
-    AVI = "avi"
-    MKV = "mkv"
-    WMV = "wmv"
-    FLV = "flv"
-    THREE_GP = "3gp"
-    TTF = "ttf"
-    OTF = "otf"
-    WOFF = "woff"
-    WOFF2 = "woff2"
-    EML = "eml"
-    NWS = "nws"
-    PDB = "pdb"
-    XYZ = "xyz"
-    THREE_MF = "3mf"
-    OBJ = "obj"
-    STL = "stl"
-    WMF = "wmf"
-    MDB = "mdb"
-    CSH = "csh"
-    SH = "sh"
-    TCL = "tcl"
-    TE = "te"
-    XI = "xi"
-    TR = "tr"
-    SRC = "src"
-    BCPIO = "bcpio"
-    CPIO = "cpio"
-    GTAR = "gtar"
-    HDF = "hdf"
-    NC = "nc"
-    SHAR = "shar"
-    SV4CPIO = "sv4cpio"
-    SV4CRC = "sv4crc"
-    USTAR = "ustar"
-    DCR = "dcr"
-    EVY = "evy"
-    MIF = "mif"
-    CDF = "cdf"
-    SCR = "scr"
-    DATA = "data"
-    RTF = "rtf"
-    KSWPS = "kswps"
-    XPSDOCUMENT = "xpsdocument"
-    ACROBAT = "acrobat"
-    STREAM = "stream"
-    PJPG = "pjpeg"
-    ZIP_COMPRESSED = "zip-compressed"
-    TEMPLATE = "template"
-    CHROME_EXTENSION = "chrome-extension"
-    REAL = "real"
-    OCTET = "octet"
-    SAVE = "save"
-    SLIDESHOW = "slideshow"
-    UNKNOWN = "unknown"
-    OCTETSTREAM = "octetstream"
-    TEXT = "text"
-    MACROENABLED = "macroenabled"
-    WORDPROCESSINGML = "wordprocessingml"
-    FORM_URLENCODED = "form-urlencoded"
-    TYPE = "type"
-    CBL = "cbl"
-    COMPRESSED = "compressed"
-    DOT_PDF = ".pdf"
-    SPREADSHEET = "spreadsheet"
-    DOWNLOAD = "download"
-    PRESENTATION = "presentation"
-    RICHTEXT = "richtext"
-    JAVASCRIPT = "javascript"
-    GRAPHICS = "graphics"
-    MSWORD = "msword"
-    DRAWING = "drawing"
-    RFC822 = "rfc822"
-
-    def as_mime_type(self) -> str:
-        """Returns the MIME type associated with the file extension."""
-        mime_type = mimetypes.guess_type(f"dummy.{self.value}")[0]
-        if mime_type is None:
-            raise ValueError(f"Unknown MIME type for extension: {self.value}")
-
-        return mime_type
+    ext = content_type_map.get(content_type)
+    if ext is None:
+        raise ValueError(f"Unsupported content type: {content_type}")
+    return ext
 
 
 class RawFile(msgspec.Struct, frozen=True, gc=False):
@@ -479,7 +404,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     raw_file = RawFile.from_file_path('example.pdf')
 
     # Access the file extension
-    print(raw_file.extension)  # Output: FileExtension.PDF
+    print(raw_file.extension)  # Output: "pdf"
 
     # Get the size of the file content
     print(raw_file.get_size())  # Output: Size of the file in bytes
@@ -502,16 +427,16 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
     - Creation:
       - `from_file_path(cls, file_path: str)`: Create from a file path.
-      - `from_bytes(cls, data: bytes, extension: FileExtension)`: Create from bytes.
-      - `from_base64(cls, b64_string: str, extension: FileExtension)`: Create from a base64 string.
-      - `from_string(cls, content: str, extension: FileExtension, encoding: str = "utf-8")`: Create from a string.
-      - `from_stream(cls, stream: BinaryIO, extension: FileExtension)`: Create from a binary stream.
+      - `from_bytes(cls, data: bytes, extension: str)`: Create from bytes.
+      - `from_base64(cls, b64_string: str, extension: str)`: Create from a base64 string.
+      - `from_string(cls, content: str, extension: str, encoding: str = "utf-8")`: Create from a string.
+      - `from_stream(cls, stream: BinaryIO, extension: str)`: Create from a binary stream.
       - `from_url(cls, url: str, ...)`: Create from a URL.
-      - `from_s3(cls, bucket_name: str, object_key: str, extension: Optional[FileExtension] = None)`: Create from Amazon S3.
-      - `from_azure_blob(cls, connection_string: str, container_name: str, blob_name: str, extension: Optional[FileExtension] = None)`: Create from Azure Blob Storage.
-      - `from_gcs(cls, bucket_name: str, blob_name: str, extension: Optional[FileExtension] = None)`: Create from Google Cloud Storage.
-      - `from_zip(cls, zip_file_path: str, inner_file_path: str, extension: Optional[FileExtension] = None)`: Create from a file within a ZIP archive.
-      - `from_stdin(cls, extension: FileExtension)`: Create from standard input.
+      - `from_s3(cls, bucket_name: str, object_key: str, extension: Optional[str] = None)`: Create from Amazon S3.
+      - `from_azure_blob(cls, connection_string: str, container_name: str, blob_name: str, extension: Optional[str] = None)`: Create from Azure Blob Storage.
+      - `from_gcs(cls, bucket_name: str, blob_name: str, extension: Optional[str] = None)`: Create from Google Cloud Storage.
+      - `from_zip(cls, zip_file_path: str, inner_file_path: str, extension: Optional[str] = None)`: Create from a file within a ZIP archive.
+      - `from_stdin(cls, extension: str)`: Create from standard input.
 
     - Utilities:
       - `save_to_file(self, file_path: str)`: Save content to a file.
@@ -554,17 +479,16 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
     **Extensibility:**
 
-    - The `FileExtension` enum and content type mappings can be extended to support additional file types as needed.
     - Custom methods can be added to handle specific use cases or integrations with other services.
 
     **Examples of Creating `RawFile` Instances from Different Sources:**
 
     ```python
     # From bytes
-    raw_file = RawFile.from_bytes(b"Hello, World!", FileExtension.TXT)
+    raw_file = RawFile.from_bytes(b"Hello, World!", "txt")
 
     # From a base64 string
-    raw_file = RawFile.from_base64("SGVsbG8sIFdvcmxkIQ==", FileExtension.TXT)
+    raw_file = RawFile.from_base64("SGVsbG8sIFdvcmxkIQ==", "txt")
 
     # From a URL
     raw_file = RawFile.from_url("https://example.com/data.json")
@@ -579,7 +503,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     raw_file = RawFile.from_gcs("my-bucket", "path/to/blob.json")
 
     # From standard input
-    raw_file = RawFile.from_stdin(FileExtension.TXT)
+    raw_file = RawFile.from_stdin("txt")
     ```
 
     **Disclaimer:**
@@ -595,7 +519,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         ),
     ]
     contents: bytes
-    extension: FileExtension
+    extension: str
 
     @classmethod
     def from_file_path(cls, file_path: str) -> RawFile:
@@ -612,31 +536,27 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         return cls(
             name=path.name,
             contents=data,
-            extension=FileExtension(path.suffix.lstrip(".")),
+            extension=path.suffix.lstrip("."),
         )
 
     @classmethod
-    def from_bytes(cls, data: bytes, name: str, extension: FileExtension) -> RawFile:
+    def from_bytes(cls, data: bytes, name: str, extension: str) -> RawFile:
         return cls(name=name, contents=data, extension=extension)
 
     @classmethod
-    def from_base64(
-        cls, b64_string: str, name: str, extension: FileExtension
-    ) -> RawFile:
+    def from_base64(cls, b64_string: str, name: str, extension: str) -> RawFile:
         data = base64.b64decode(b64_string)
         return cls.from_bytes(data=data, name=name, extension=extension)
 
     @classmethod
     def from_string(
-        cls, content: str, name: str, extension: FileExtension, encoding: str = "utf-8"
+        cls, content: str, name: str, extension: str, encoding: str = "utf-8"
     ) -> RawFile:
         data = content.encode(encoding)
         return cls.from_bytes(data=data, name=name, extension=extension)
 
     @classmethod
-    def from_stream(
-        cls, stream: BinaryIO, name: str, extension: FileExtension
-    ) -> RawFile:
+    def from_stream(cls, stream: BinaryIO, name: str, extension: str) -> RawFile:
         data = stream.read()
         return cls(name=name, contents=data, extension=extension)
 
@@ -664,7 +584,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         debug_logger.debug(f"File content type: {content_type}")
         debug_logger.debug(f"File name: {filename}")
 
-        extension: FileExtension = find_extension(
+        extension = find_extension(
             filename=filename,
             content_type=content_type,
             contents=file_contents,
@@ -679,14 +599,11 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             raise ValueError("The content type of the file is missing.")
         file_contents = file.file.read()
 
-        extension: Optional[FileExtension] = find_extension(
+        extension: str = find_extension(
             content_type=file.content_type,
             filename=file.filename,
             contents=file_contents,
         )
-
-        if extension is None:
-            raise ValueError(f"{file.content_type} is not a supported file type yet.")
 
         filename = file.filename
         if filename is None:
@@ -713,7 +630,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         verify: Optional[_Verify] = None,
         cert: Optional[_Cert] = None,
         json: Optional[Incomplete] = None,
-        extension: Optional[FileExtension] = None,
+        extension: Optional[str] = None,
     ) -> RawFile:
         response: requests.Response = requests.get(
             url,
@@ -743,7 +660,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
             find_extension(
                 content_type=response.headers.get("Content-Type", "").split(";")[0]
             )
-            or FileExtension.HTML
+            or "html"
         )
 
         return cls(name=url, contents=response_content, extension=file_extension)
@@ -754,20 +671,14 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         cls,
         bucket_name: str,
         object_key: str,
-        extension: Optional[FileExtension] = None,
+        extension: Optional[str] = None,
     ) -> RawFile:
         import boto3
 
         s3 = boto3.client("s3")
 
         if not extension:
-            ext = Path(object_key).suffix.lstrip(".")
-            if ext.upper() in FileExtension.__members__:
-                extension = FileExtension[ext.upper()]
-            else:
-                head_object = s3.head_object(Bucket=bucket_name, Key=object_key)
-                content_type = head_object.get("ContentType", "")
-                extension = find_extension(content_type=content_type)
+            extension = Path(object_key).suffix.lstrip(".")
 
         if not extension:
             raise ValueError(
@@ -786,7 +697,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         connection_string: str,
         container_name: str,
         blob_name: str,
-        extension: Optional[FileExtension] = None,
+        extension: Optional[str] = None,
     ) -> RawFile:
         from azure.storage.blob import BlobServiceClient
 
@@ -798,18 +709,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         )
 
         if not extension:
-            ext = Path(blob_name).suffix.lstrip(".")
-            if ext.upper() in FileExtension.__members__:
-                extension = FileExtension[ext.upper()]
-            else:
-                properties = blob_client.get_blob_properties()
-                content_type = properties.content_settings.content_type
-                if content_type is None:
-                    raise ValueError(
-                        "Unable to determine the file extension. Please specify it explicitly."
-                    )
-
-                extension = find_extension(content_type=content_type)
+            extension = Path(blob_name).suffix.lstrip(".")
 
         if not extension:
             raise ValueError(
@@ -824,7 +724,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
     @ensure_module_installed("google.cloud.storage", "google-cloud-storage")
     @classmethod
     def from_gcs(
-        cls, bucket_name: str, blob_name: str, extension: Optional[FileExtension] = None
+        cls, bucket_name: str, blob_name: str, extension: Optional[str] = None
     ) -> RawFile:
         from google.cloud.storage import Client
 
@@ -833,13 +733,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         blob = bucket.blob(blob_name)
 
         if not extension:
-            ext = Path(blob_name).suffix.lstrip(".")
-            if ext.upper() in FileExtension.__members__:
-                extension = FileExtension[ext.upper()]
-            else:
-                blob.reload()
-                content_type = blob.content_type
-                extension = find_extension(content_type=content_type)
+            extension = Path(blob_name).suffix.lstrip(".")
 
         if not extension:
             raise ValueError(
@@ -864,21 +758,21 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
         Returns:
             A RawFile instance where the contents are the bytes of the ZIP archive
-            and the extension is FileExtension.ZIP.
+            and the extension is "zip".
         """
         with open(zip_file_path, "rb") as f:
             data = f.read()
 
         return cls(
-            name=Path(zip_file_path).name, contents=data, extension=FileExtension.ZIP
+            name=Path(zip_file_path).name, contents=data, extension="zip"
         )
 
     @classmethod
-    def from_database_blob(cls, blob_data: bytes, extension: FileExtension) -> RawFile:
+    def from_database_blob(cls, blob_data: bytes, extension: str) -> RawFile:
         return cls.from_bytes(name="database_blob", data=blob_data, extension=extension)
 
     @classmethod
-    def from_stdin(cls, extension: FileExtension) -> RawFile:
+    def from_stdin(cls, extension: str) -> RawFile:
         data = sys.stdin.buffer.read()
         return cls.from_bytes(name="stdin", data=data, extension=extension)
 
@@ -889,7 +783,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         filepath: str,
         username: str = "",
         password: str = "",
-        extension: Optional[FileExtension] = None,
+        extension: Optional[str] = None,
     ) -> RawFile:
         import ftplib
 
@@ -899,7 +793,8 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         ftp.retrbinary(f"RETR {filepath}", data.extend)
         ftp.quit()
         if not extension:
-            extension = FileExtension(Path(filepath).suffix.lstrip("."))
+            extension = Path(filepath).suffix.lstrip(".")
+
         return cls(name=filepath, contents=bytes(data), extension=extension)
 
     def save_to_file(self, file_path: str) -> None:
