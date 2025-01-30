@@ -108,7 +108,7 @@ def find_extension(
 ) -> str:
     if filename and (ext := get_extension_from_filename(filename)):
         return ext
-    if content_type and (ext := get_extension_from_content_type(content_type)):
+    if content_type and (ext := mime_to_ext(content_type)):
         return ext
     if contents and (ext := get_extension_agressivelly(contents)):
         return ext
@@ -235,134 +235,34 @@ def get_extension_agressivelly(contents: bytes) -> str:
         return _detect_mime_type_manually(contents)
 
 
-def get_extension_from_content_type(content_type: str) -> str:
-    content_type_map = {
-        # Text types
-        "text/plain": "txt",
-        "text/html": "html",
-        "text/css": "css",
-        "text/csv": "csv",
-        "text/calendar": "ics",
-        "text/javascript": "js",
-        "text/markdown": "md",
-        "text/vcard": "vcf",
-        "text/xml": "xml",
-        "text/x-vcard": "vcf",
-        # Application types
-        "application/octet-stream": "bin",
-        "application/json": "json",
-        "application/pdf": "pdf",
-        "application/zip": "zip",
-        "application/x-zip-compressed": "zip",
-        "application/x-rar-compressed": "rar",
-        "application/x-tar": "tar",
-        "application/x-bzip": "bz",
-        "application/x-bzip2": "bz2",
-        "application/x-7z-compressed": "7z",
-        "application/x-msdownload": "exe",
-        "application/x-shockwave-flash": "swf",
-        "application/xhtml+xml": "xhtml",
-        "application/xml": "xml",
-        "application/atom+xml": "atom",
-        "application/rss+xml": "rss",
-        "application/x-latex": "latex",
-        "application/x-httpd-php": "php",
-        "application/postscript": "ps",
-        "application/sql": "sql",
-        "application/x-dvi": "dvi",
-        "application/x-tex": "tex",
-        "application/msword": "doc",
-        "application/vnd.ms-excel": "xls",
-        "application/vnd.ms-powerpoint": "ppt",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
-        "application/vnd.oasis.opendocument.text": "odt",
-        "application/vnd.android.package-archive": "apk",
-        "application/java-archive": "jar",
-        "application/x-debian-package": "deb",
-        "application/x-redhat-package-manager": "rpm",
-        # Image types
-        "image/jpeg": "jpg",
-        "image/png": "png",
-        "image/gif": "gif",
-        "image/bmp": "bmp",
-        "image/tiff": "tiff",
-        "image/svg+xml": "svg",
-        "image/webp": "webp",
-        "image/x-icon": "ico",
-        "image/vnd.djvu": "djvu",
-        "image/x-ms-bmp": "bmp",
-        "image/x-xcf": "xcf",
-        "image/x-pcx": "pcx",
-        "image/x-pict": "pict",
-        "image/x-portable-anymap": "pnm",
-        "image/x-portable-bitmap": "pbm",
-        "image/x-portable-graymap": "pgm",
-        "image/x-portable-pixmap": "ppm",
-        "image/x-rgb": "rgb",
-        "image/x-xbitmap": "xbm",
-        "image/x-jp2": "jp2",
-        # Audio types
-        "audio/mpeg": "mp3",
-        "audio/ogg": "ogg",
-        "audio/wav": "wav",
-        "audio/webm": "weba",
-        "audio/aac": "aac",
-        "audio/midi": "mid",
-        "audio/x-wav": "wav",
-        "audio/x-aiff": "aiff",
-        # Video types
-        "video/mp4": "mp4",
-        "video/ogg": "ogv",
-        "video/webm": "webm",
-        "video/x-msvideo": "avi",
-        "video/x-matroska": "mkv",
-        "video/quicktime": "mov",
-        "video/x-ms-wmv": "wmv",
-        "video/x-flv": "flv",
-        "video/3gpp": "3gp",
-        # Font types
-        "font/ttf": "ttf",
-        "font/otf": "otf",
-        "font/woff": "woff",
-        "font/woff2": "woff2",
-        # Message types
-        "message/rfc822": "eml",
-        "message/news": "nws",
-        # Chemical/Model types
-        "chemical/x-pdb": "pdb",
-        "chemical/x-xyz": "xyz",
-        "model/3mf": "3mf",
-        "model/obj": "obj",
-        "model/stl": "stl",
-        # Legacy/Obscure types
-        "application/x-msmetafile": "wmf",
-        "application/x-msaccess": "mdb",
-        "application/x-csh": "csh",
-        "application/x-sh": "sh",
-        "application/x-tcl": "tcl",
-        "application/x-texinfo": "te",
-        "application/x-troff": "tr",
-        "application/x-wais-source": "src",
-        "application/x-bcpio": "bcpio",
-        "application/x-cpio": "cpio",
-        "application/x-gtar": "gtar",
-        "application/x-hdf": "hdf",
-        "application/x-netcdf": "nc",
-        "application/x-shar": "shar",
-        "application/x-sv4cpio": "sv4cpio",
-        "application/x-sv4crc": "sv4crc",
-        "application/x-ustar": "ustar",
-        "application/x-director": "dcr",
-        "application/x-envoy": "evy",
-        "application/x-mif": "mif",
-        "application/x-silverlight": "scr",
-    }
-    ext = content_type_map.get(content_type)
-    if ext is None:
-        raise ValueError(f"Unsupported content type: {content_type}")
-    return ext
+def mime_to_ext(mime: str) -> str:
+    """
+    Returns the most common file extension for the given MIME type.
+    Returns None if the MIME type is unknown.
+    """
+    _mime = mimetypes.guess_extension(mime, strict=False)
+    if _mime is None:
+        raise ValueError("Unable to determine the file extension.")
+
+    return _mime.lstrip(".")
+
+
+def ext_to_mime(extension: str) -> str:
+    """
+    Returns the MIME type associated with the given file extension.
+    Returns None if the extension is unknown.
+    """
+    # Normalize the extension to include a leading dot
+    if not extension.startswith("."):
+        extension = "." + extension
+
+    # Create a dummy filename with the given extension
+    dummy_filename = f"dummy{extension}"
+    mime_type, _ = mimetypes.guess_type(dummy_filename)
+    if mime_type is None:
+        raise ValueError("Unable to determine the MIME type.")
+
+    return mime_type
 
 
 class RawFile(msgspec.Struct, frozen=True, gc=False):
@@ -763,9 +663,7 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         with open(zip_file_path, "rb") as f:
             data = f.read()
 
-        return cls(
-            name=Path(zip_file_path).name, contents=data, extension="zip"
-        )
+        return cls(name=Path(zip_file_path).name, contents=data, extension="zip")
 
     @classmethod
     def from_database_blob(cls, blob_data: bytes, extension: str) -> RawFile:
@@ -816,7 +714,9 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
 
     def get_mime_type(self) -> str:
         mime_type, _ = mimetypes.guess_type(f"file.{self.extension}")
-        return mime_type or "application/octet-stream"
+        if mime_type is None:
+            mime_type = magic.Magic(mime=True).from_buffer(self.contents)
+        return mime_type
 
     def compress(self) -> RawFile:
         import gzip
