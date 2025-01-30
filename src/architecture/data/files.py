@@ -264,11 +264,17 @@ def ext_to_mime(extension: str) -> str:
 
     return mime_type
 
+
 def bytes_to_mime(content: bytes) -> str:
     try:
         return magic.Magic(mime=True).from_buffer(content)
     except Exception:
         return _detect_mime_type_manually(content)
+
+
+def bytes_to_ext(content: bytes) -> str:
+    mime = bytes_to_mime(content)
+    return mime_to_ext(mime)
 
 
 def _detect_mime_type_manually(content: bytes) -> str:
@@ -357,7 +363,6 @@ def _detect_mime_type_manually(content: bytes) -> str:
         pass
 
     return "application/octet-stream"
-
 
 
 class RawFile(msgspec.Struct, frozen=True, gc=False):
