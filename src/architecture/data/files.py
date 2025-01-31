@@ -23,7 +23,6 @@ from typing import (
     overload,
 )
 
-import magic
 import msgspec
 import requests
 from requests import Response
@@ -139,6 +138,8 @@ def get_extension_from_filename(filename: str) -> str:
 
 
 def get_extension_agressivelly(contents: bytes) -> str:
+    import magic
+
     def _detect_mime_type_manually(content: bytes) -> str:
         # Ordered by category and signature specificity (longer/more specific first)
         signature_map = [
@@ -266,6 +267,8 @@ def ext_to_mime(extension: str) -> str:
 
 
 def bytes_to_mime(content: bytes) -> str:
+    import magic
+
     try:
         return magic.Magic(mime=True).from_buffer(content)
     except Exception:
@@ -813,6 +816,8 @@ class RawFile(msgspec.Struct, frozen=True, gc=False):
         return sha256.hexdigest()
 
     def get_mime_type(self) -> str:
+        import magic
+
         mime_type, _ = mimetypes.guess_type(f"file.{self.extension}")
         if mime_type is None:
             mime_type = magic.Magic(mime=True).from_buffer(self.contents)
