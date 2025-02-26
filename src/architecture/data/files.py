@@ -23,6 +23,7 @@ from typing import (
     overload,
 )
 
+import magic
 import msgspec
 import requests
 from requests import Response
@@ -138,8 +139,6 @@ def get_extension_from_filename(filename: str) -> str:
 
 
 def get_extension_agressivelly(contents: bytes) -> str:
-    import magic
-
     def _detect_mime_type_manually(content: bytes) -> str:
         # Ordered by category and signature specificity (longer/more specific first)
         signature_map = [
@@ -230,10 +229,18 @@ def get_extension_agressivelly(contents: bytes) -> str:
 
         return "application/octet-stream"
 
+    # Detect MIME type
     try:
-        return magic.Magic(mime=True).from_buffer(contents)
+        mime_type = magic.Magic(mime=True).from_buffer(contents)
     except Exception:
-        return _detect_mime_type_manually(contents)
+        mime_type = _detect_mime_type_manually(contents)
+
+    # Convert MIME type to extension
+    extension = mimetypes.guess_extension(mime_type)
+    if extension is None:
+        extension = ".bin"  # Default to .bin for unknown MIME types
+
+    return extension
 
 
 def mime_to_ext(mime: str) -> str:
