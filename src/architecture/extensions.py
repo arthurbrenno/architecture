@@ -159,7 +159,9 @@ class Maybe[T = object](msgspec.Struct, frozen=True):
         except Exception:
             return Maybe[object](obj=None)
 
-    def map[U](self, func: Callable[[T], U]) -> Maybe[U]:
+    def map[U](
+        self, func: Callable[[T], U], ignore_exceptions: bool = False
+    ) -> Maybe[U]:
         """
         Apply a function to the wrapped object if it's not `None`.
 
@@ -191,6 +193,12 @@ class Maybe[T = object](msgspec.Struct, frozen=True):
         """
         if self.obj is None:
             return Maybe[U](obj=None)
+
+        if ignore_exceptions:
+            try:
+                return Maybe[U](obj=func(self.obj))
+            except Exception:
+                return Maybe[U](obj=None)
 
         return Maybe[U](obj=func(self.obj))
 
