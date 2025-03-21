@@ -191,10 +191,8 @@ class Maybe[T = object](msgspec.Struct, frozen=True):
         """
         if self.obj is None:
             return Maybe[U](obj=None)
-        try:
-            return Maybe[U](obj=func(self.obj))
-        except Exception:
-            return Maybe[U](obj=None)
+
+        return Maybe[U](obj=func(self.obj))
 
     def unwrap(self) -> Optional[T]:
         """
